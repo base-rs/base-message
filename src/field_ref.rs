@@ -1,51 +1,98 @@
 // Released under the MIT License.
 // Copyright, 2026, by Samuel Williams.
 
-use crate::FieldName;
+use crate::__private::{IncomingField, IncomingName};
 
 /// One field, borrowed, with its position in the original section.
 ///
 /// [`FieldSection::partition`](crate::FieldSection::partition) returns the fields a section does not take as `FieldRef`s, so that the next section reports errors at their original positions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FieldRef<'a> {
+    position: usize,
+    name: &'a str,
+    value: &'a [u8],
+}
+
+impl<'a> FieldRef<'a> {
+    /// A field at a position in the original section.
+    pub const fn new(position: usize, name: &'a str, value: &'a [u8]) -> Self {
+        Self {
+            position,
+            name,
+            value,
+        }
+    }
+
     /// The field's position in the original section.
-    pub position: usize,
-    pub name: FieldName<'a>,
-    pub value: &'a [u8],
+    pub const fn position(&self) -> usize {
+        self.position
+    }
+
+    /// The name as it was written.
+    pub const fn name(&self) -> &'a str {
+        self.name
+    }
+
+    /// The value, as it was passed to the section.
+    pub const fn value(&self) -> &'a [u8] {
+        self.value
+    }
 }
 
-/// Something a section can interpret as one field.
+/// Something section `S` can interpret as one field.
 ///
-/// - A `(name, value)` pair, whose position is its place in the input.
-/// - A `(FieldName, value)` pair from a decoder, likewise.
-/// - A [`FieldRef`], which keeps its own position, such as one from a remainder.
-pub trait IntoFieldRef<'a> {
-    /// The field, given its index in the input.
-    fn into_field_ref(self, index: usize) -> FieldRef<'a>;
+/// - A `(name, value)` pair, with the value as bytes or text, whose position is its place in the input.
+/// - A [`FieldRef`], which keeps its own position, such as one from a remainder, and an [`OwnedField`](crate::OwnedField) by reference likewise.
+/// - A [`StaticTableEntry`](crate::StaticTableEntry) or [`FieldName`](crate::FieldName) with its value, classified by a static table built for `S`.
+///
+/// It is implemented only by this crate.
+pub trait IntoField<'a, S> {
+    #[doc(hidden)]
+    fn into_field(self, index: usize) -> IncomingField<'a>;
 }
 
-impl<'a> IntoFieldRef<'a> for (&'a str, &'a [u8]) {
-    fn into_field_ref(self, index: usize) -> FieldRef<'a> {
-        FieldRef {
+impl<'a, S> IntoField<'a, S> for (&'a str, &'a [u8]) {
+    fn into_field(self, index: usize) -> IncomingField<'a> {
+        IncomingField {
             position: index,
-            name: FieldName::Text(self.0),
+            name: IncomingName::Text(self.0),
             value: self.1,
         }
     }
 }
 
-impl<'a> IntoFieldRef<'a> for (FieldName<'a>, &'a [u8]) {
-    fn into_field_ref(self, index: usize) -> FieldRef<'a> {
-        FieldRef {
+impl<'a, S> IntoField<'a, S> for (&'a str, &'a str) {
+    fn into_field(self, index: usize) -> IncomingField<'a> {
+        IncomingField {
             position: index,
-            name: self.0,
+            name: IncomingName::Text(self.0),
+            value: self.1.as_bytes(),
+        }
+    }
+}
+
+impl<'a, S> IntoField<'a, S> for &(&'a str, &'a [u8]) {
+    fn into_field(self, index: usize) -> IncomingField<'a> {
+        IncomingField {
+            position: index,
+            name: IncomingName::Text(self.0),
             value: self.1,
         }
     }
 }
 
-impl<'a> IntoFieldRef<'a> for FieldRef<'a> {
-    fn into_field_ref(self, _index: usize) -> FieldRef<'a> {
-        self
+impl<'a, S> IntoField<'a, S> for FieldRef<'a> {
+    fn into_field(self, _index: usize) -> IncomingField<'a> {
+        IncomingField {
+            position: self.position,
+            name: IncomingName::Text(self.name),
+            value: self.value,
+        }
+    }
+}
+
+impl<'a, S> IntoField<'a, S> for &FieldRef<'a> {
+    fn into_field(self, index: usize) -> IncomingField<'a> {
+        <FieldRef<'a> as IntoField<'a, S>>::into_field(*self, index)
     }
 }

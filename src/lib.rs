@@ -8,18 +8,20 @@
 //! ```
 //! use base_message::{FieldSection, FieldType, FieldValueError, ascii_text, combination::{List, Singleton}};
 //!
-//! struct Host(String);
+//! /// A field type that borrows its value from the input.
+//! struct Host<'a>(&'a str);
 //!
-//! impl FieldType for Host {
+//! impl<'a> FieldType<'a> for Host<'a> {
 //!     type Combination = Singleton;
-//!     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
-//!         Ok(Self(ascii_text(value)?.to_owned()))
+//!     fn parse(value: &'a [u8]) -> Result<Self, FieldValueError> {
+//!         ascii_text(value).map(Self)
 //!     }
 //! }
 //!
+//! /// A field type that owns its value.
 //! struct Accept(String);
 //!
-//! impl FieldType for Accept {
+//! impl FieldType<'_> for Accept {
 //!     type Combination = List;
 //!     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
 //!         Ok(Self(ascii_text(value)?.to_owned()))
@@ -28,24 +30,24 @@
 //!
 //! #[derive(FieldSection)]
 //! #[fields(forbid("transfer-encoding"))]
-//! struct Request {
+//! struct Request<'a> {
 //!     #[field("host")]
-//!     host: Host,
+//!     host: Host<'a>,
 //!     #[field("accept")]
 //!     accept: Vec<Accept>,
 //! }
 //!
-//! let fields = [("Host", &b"example.com"[..]), ("Accept", b"text/html, image/*"), ("User-Agent", b"curl/8")];
+//! let fields = [("Host", "example.com"), ("Accept", "text/html, image/*"), ("User-Agent", "curl/8")];
 //! let request = Request::interpret(fields)?;
 //! assert_eq!(request.host.0, "example.com");
 //! assert_eq!(request.accept.len(), 2);
 //!
-//! let duplicate = Request::interpret([("Host", &b"a"[..]), ("Host", b"b")]).err().expect("a duplicate host");
+//! let duplicate = Request::interpret([("Host", "a"), ("Host", "b")]).err().expect("a duplicate host");
 //! assert_eq!(duplicate.to_string(), "duplicate host field at position 1, first at 0");
 //! # Ok::<(), base_message::FieldError>(())
 //! ```
 //!
-//! The crate interprets field sections only. Parsing them from the wire, as well as control data, such as a request line or status, content, framing, and transport, belongs to each protocol's own crate, which passes the fields it parses as name and value pairs in wire order. The [Getting Started](https://github.com/base-rs/base-message/blob/main/context/getting-started.md) guide covers field types and sections, and the [Layering](https://github.com/base-rs/base-message/blob/main/context/layering.md) guide covers passing fields between layers and static tables.
+//! The crate interprets field sections only. Parsing them from the wire, as well as control data, such as a request line or status, content, framing, and transport, belongs to each protocol's own crate, which passes the fields it parses as name and value pairs in wire order. The [Getting Started](https://github.com/base-rs/base-message/blob/main/context/getting-started.md) guide covers field types and sections, and the [Layering](https://github.com/base-rs/base-message/blob/main/context/layering.md) guide covers passing fields between layers, trailers, and static tables.
 
 mod accumulate;
 pub mod combination;
@@ -61,18 +63,20 @@ mod owned_fields;
 mod static_table_entry;
 
 #[doc(hidden)]
-pub use accumulate::{Accumulate, Slot};
+#[path = "private.rs"]
+pub mod __private;
+
 pub use base_message_macros::FieldSection;
 pub use field_error::{FieldError, FieldErrorKind};
 pub use field_name::FieldName;
 pub use field_names::FieldNames;
-pub use field_ref::{FieldRef, IntoFieldRef};
+pub use field_ref::{FieldRef, IntoField};
 pub use field_section::FieldSection;
 pub use field_type::{FieldType, InvalidValue};
-pub use field_value::{ascii_text, split_list, trim_whitespace};
+pub use field_value::{ListElements, ascii_text, split_list, trim_whitespace};
 pub use field_value_error::FieldValueError;
 pub use owned_fields::{OwnedField, OwnedFields};
-pub use static_table_entry::{StaticTableEntry, static_table_entries};
+pub use static_table_entry::{Classification, StaticTableEntry, static_table_entries};
 
 #[cfg(doctest)]
 #[doc = include_str!("../readme.md")]

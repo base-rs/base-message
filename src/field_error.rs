@@ -7,19 +7,22 @@ use std::fmt;
 /// Why a field section could not be interpreted, naming the field and its position in the original section.
 ///
 /// The name is the section's own lowercase spelling of a declared or forbidden field. The name of an unknown field is untrusted input, so it is never included; nor is any value.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FieldError {
     name: Option<&'static str>,
-    position: usize,
+    position: Option<usize>,
     kind: FieldErrorKind,
 }
 
 /// The kind of [`FieldError`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum FieldErrorKind {
-    /// A singleton field appeared again; `first` is the position of its first instance.
-    Duplicate { first: usize },
+    /// A singleton field appeared again.
+    Duplicate {
+        /// The position of the field's first instance.
+        first: usize,
+    },
     /// A required field is absent.
     Missing,
     /// A value is invalid, and the field treats an invalid value as an error.
@@ -28,21 +31,20 @@ pub enum FieldErrorKind {
     Forbidden,
     /// The section rejects fields it neither declares nor forbids.
     Unknown,
-    /// A decoder passed a declaration id the section does not have, so its static table was built for another section.
-    Declaration,
 }
 
 impl FieldError {
-    /// The field's lowercase name, or `None` for an unknown field or an unrecognized declaration id.
+    /// The field's lowercase name, or `None` for an unknown field, whose name is untrusted.
     pub fn name(&self) -> Option<&'static str> {
         self.name
     }
 
-    /// The position of the offending field in the original section, or, for a missing field, just past the section's last field.
-    pub fn position(&self) -> usize {
+    /// The position of the offending field in the original section, or `None` for a missing field, which has no position.
+    pub fn position(&self) -> Option<usize> {
         self.position
     }
 
+    /// What went wrong.
     pub fn kind(&self) -> FieldErrorKind {
         self.kind
     }
@@ -50,7 +52,7 @@ impl FieldError {
     pub(crate) fn duplicate(name: &'static str, position: usize, first: usize) -> Self {
         Self {
             name: Some(name),
-            position,
+            position: Some(position),
             kind: FieldErrorKind::Duplicate { first },
         }
     }
@@ -58,7 +60,7 @@ impl FieldError {
     pub(crate) fn invalid(name: &'static str, position: usize, error: FieldValueError) -> Self {
         Self {
             name: Some(name),
-            position,
+            position: Some(position),
             kind: FieldErrorKind::Invalid(error),
         }
     }
@@ -66,42 +68,32 @@ impl FieldError {
     pub(crate) fn unknown(position: usize) -> Self {
         Self {
             name: None,
-            position,
+            position: Some(position),
             kind: FieldErrorKind::Unknown,
         }
     }
 
-    #[doc(hidden)]
-    pub fn missing(name: &'static str, position: usize) -> Self {
+    pub(crate) fn missing(name: &'static str) -> Self {
         Self {
             name: Some(name),
-            position,
+            position: None,
             kind: FieldErrorKind::Missing,
         }
     }
 
-    #[doc(hidden)]
-    pub fn forbidden(name: &'static str, position: usize) -> Self {
+    pub(crate) fn forbidden(name: &'static str, position: usize) -> Self {
         Self {
             name: Some(name),
-            position,
+            position: Some(position),
             kind: FieldErrorKind::Forbidden,
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn declaration(position: usize) -> Self {
-        Self {
-            name: None,
-            position,
-            kind: FieldErrorKind::Declaration,
         }
     }
 }
 
 impl fmt::Display for FieldError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (name, position) = (self.name.unwrap_or("unknown"), self.position);
+        let name = self.name.unwrap_or("unknown");
+        let position = self.position.unwrap_or_default();
         match self.kind {
             FieldErrorKind::Duplicate { first } => write!(
                 formatter,
@@ -116,10 +108,6 @@ impl fmt::Display for FieldError {
                 write!(formatter, "forbidden {name} field at position {position}")
             }
             FieldErrorKind::Unknown => write!(formatter, "unexpected field at position {position}"),
-            FieldErrorKind::Declaration => write!(
-                formatter,
-                "field at position {position} has a declaration id this section does not have"
-            ),
         }
     }
 }

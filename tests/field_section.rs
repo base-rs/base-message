@@ -3,8 +3,8 @@
 
 use base_message::combination::{List, Separate, Singleton};
 use base_message::{
-    FieldErrorKind, FieldName, FieldRef, FieldSection, FieldType, FieldValueError, InvalidValue,
-    OwnedFields, StaticTableEntry, ascii_text, static_table_entries,
+    Classification, FieldErrorKind, FieldName, FieldRef, FieldSection, FieldType, FieldValueError,
+    InvalidValue, OwnedFields, StaticTableEntry, ascii_text, static_table_entries,
 };
 use base_web_media_type::{MediaRange, MediaType};
 
@@ -13,7 +13,7 @@ use base_web_media_type::{MediaRange, MediaType};
 #[derive(Debug, PartialEq)]
 struct ContentType(MediaType);
 
-impl FieldType for ContentType {
+impl FieldType<'_> for ContentType {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         MediaType::parse(ascii_text(value)?)
@@ -28,10 +28,10 @@ struct ContentDisposition {
     name: Option<String>,
 }
 
-impl FieldType for ContentDisposition {
+impl FieldType<'_> for ContentDisposition {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
-        // A deliberately small parser for the prototype: `type; name="..."`.
+        // A deliberately small parser for the tests: `type; name="..."`.
         let text = ascii_text(value)?;
         let mut parts = text.split(';').map(str::trim);
         let disposition = parts
@@ -50,17 +50,28 @@ impl FieldType for ContentDisposition {
 #[derive(Debug, PartialEq)]
 struct Text(String);
 
-impl FieldType for Text {
+impl FieldType<'_> for Text {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
     }
 }
 
+/// A field type that borrows its value from the input rather than copying it.
+#[derive(Debug, PartialEq)]
+struct Borrowed<'a>(&'a str);
+
+impl<'a> FieldType<'a> for Borrowed<'a> {
+    type Combination = Singleton;
+    fn parse(value: &'a [u8]) -> Result<Self, FieldValueError> {
+        ascii_text(value).map(Self)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 struct ContentLength(u64);
 
-impl FieldType for ContentLength {
+impl FieldType<'_> for ContentLength {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         let text = ascii_text(value)?;
@@ -73,10 +84,25 @@ impl FieldType for ContentLength {
     }
 }
 
+/// An advisory singleton, whose invalid values are ignored where it is optional.
+#[derive(Debug, PartialEq)]
+struct Advisory(u64);
+
+impl FieldType<'_> for Advisory {
+    type Combination = Singleton;
+    const INVALID: InvalidValue = InvalidValue::Ignore;
+    fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
+        ascii_text(value)?
+            .parse()
+            .map(Self)
+            .map_err(|_| FieldValueError::new("not a number"))
+    }
+}
+
 #[derive(Debug, PartialEq)]
 struct Accept(MediaRange);
 
-impl FieldType for Accept {
+impl FieldType<'_> for Accept {
     type Combination = List;
     // Accept is advisory: an element that does not parse is skipped rather than failing the request.
     const INVALID: InvalidValue = InvalidValue::Ignore;
@@ -90,7 +116,7 @@ impl FieldType for Accept {
 #[derive(Debug, PartialEq)]
 struct SetCookie(String);
 
-impl FieldType for SetCookie {
+impl FieldType<'_> for SetCookie {
     type Combination = Separate;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -142,10 +168,12 @@ struct AllHeaders {
     accept: Vec<Accept>,
 }
 
+// Trailing commas are accepted in both attributes; formatting would remove them.
+#[rustfmt::skip]
 #[derive(Debug, FieldSection)]
-#[fields(unknown = "reject")]
+#[fields(unknown = "reject",)]
 struct OnlyHost {
-    #[field("host")]
+    #[field("host",)]
     host: Option<Text>,
 }
 
@@ -186,7 +214,7 @@ fn rejects_duplicate_singletons_with_both_positions() {
         (error.name(), error.position(), error.kind()),
         (
             Some("content-type"),
-            2,
+            Some(2),
             FieldErrorKind::Duplicate { first: 0 }
         )
     );
@@ -212,7 +240,8 @@ fn reports_missing_and_invalid_fields_without_their_values() {
     let error = PartHeaders::interpret(pairs(&[("Content-Type", "text/plain")])).unwrap_err();
     assert_eq!(
         (error.name(), error.position(), error.kind()),
-        (Some("content-disposition"), 1, FieldErrorKind::Missing)
+        (Some("content-disposition"), None, FieldErrorKind::Missing),
+        "a missing field has no position"
     );
     let error = PartHeaders::interpret(pairs(&[
         ("Content-Disposition", "form-data"),
@@ -274,7 +303,7 @@ fn ignores_undeclared_fields_by_default_and_rejects_them_when_declared_to() {
     let error = OnlyHost::interpret(pairs(&[("Host", "h"), ("Evil", "x")])).unwrap_err();
     assert_eq!(
         (error.kind(), error.position(), error.name()),
-        (FieldErrorKind::Unknown, 1, None),
+        (FieldErrorKind::Unknown, Some(1), None),
         "an unknown name is untrusted, so it is not repeated"
     );
 }
@@ -290,30 +319,26 @@ fn layers_pass_on_what_they_do_not_take() {
         ("User-Agent", "curl/8"),
     ];
     let (transport, rest): (TransportHeaders, Vec<FieldRef<'_>>) =
-        TransportHeaders::partition(pairs(&request)).unwrap();
+        TransportHeaders::partition(request).unwrap();
     assert_eq!(
         (transport.host, transport.content_length),
         (Text("example.com".into()), Some(ContentLength(5)))
     );
-    let positions: Vec<usize> = rest.iter().map(|field| field.position).collect();
+    let positions: Vec<usize> = rest.iter().map(FieldRef::position).collect();
     assert_eq!(
         positions,
         [1, 3, 4, 5],
         "the remainder keeps original positions"
     );
     let (application, rest): (ApplicationHeaders, Vec<FieldRef<'_>>) =
-        ApplicationHeaders::partition(rest).unwrap();
+        ApplicationHeaders::partition(&rest).unwrap();
     assert_eq!(
         (application.accept.len(), application.set_cookie.len()),
         (1, 1)
     );
     assert_eq!(
         rest,
-        [FieldRef {
-            position: 5,
-            name: FieldName::Text("User-Agent"),
-            value: b"curl/8"
-        }],
+        [FieldRef::new(5, "User-Agent", b"curl/8")],
         "only what neither layer declares is left"
     );
     // Errors in a later layer cite the field's position in the original section.
@@ -323,7 +348,7 @@ fn layers_pass_on_what_they_do_not_take() {
     let error = ApplicationHeaders::interpret(rest).unwrap_err();
     assert_eq!(
         (error.position(), error.kind()),
-        (2, FieldErrorKind::Duplicate { first: 1 })
+        (Some(2), FieldErrorKind::Duplicate { first: 1 })
     );
 }
 
@@ -363,7 +388,7 @@ fn forbidden_fields_are_errors_even_when_unknown_fields_are_ignored() {
         .unwrap_err();
     assert_eq!(
         (error.name(), error.position()),
-        (Some("transfer-encoding"), 1)
+        (Some("transfer-encoding"), Some(1))
     );
 }
 
@@ -376,6 +401,9 @@ const MOCK_TABLE: [&str; 6] = [
     "transfer-encoding",
     "user-agent",
 ];
+
+const ALL_HEADERS_TABLE: [StaticTableEntry<AllHeaders>; 6] =
+    static_table_entries::<AllHeaders, 6>(&MOCK_TABLE);
 
 #[test]
 fn numbers_declarations_across_flattened_sections() {
@@ -397,26 +425,40 @@ fn numbers_declarations_across_flattened_sections() {
         (Some(2), Some(3))
     );
     assert!(names.forbids("transfer-encoding") && names.declaration("transfer-encoding").is_none());
-    const TABLE: [StaticTableEntry; 6] = static_table_entries(&AllHeaders::NAMES, &MOCK_TABLE);
     assert_eq!(
-        TABLE,
+        ALL_HEADERS_TABLE.map(|entry| entry.classification()),
         [
-            StaticTableEntry::Undeclared,
-            StaticTableEntry::Declaration(1),
-            StaticTableEntry::Declaration(3),
-            StaticTableEntry::Declaration(0),
-            StaticTableEntry::Forbidden,
-            StaticTableEntry::Undeclared
+            Classification::Undeclared,
+            Classification::Declaration(1),
+            Classification::Declaration(3),
+            Classification::Declaration(0),
+            Classification::Forbidden,
+            Classification::Undeclared
         ]
+    );
+    assert_eq!(ALL_HEADERS_TABLE.map(|entry| entry.name()), MOCK_TABLE);
+    // The same classification, computed at run time rather than by a constant.
+    assert_eq!(
+        static_table_entries::<AllHeaders, 6>(&MOCK_TABLE),
+        ALL_HEADERS_TABLE
+    );
+    let entry = ALL_HEADERS_TABLE[1];
+    assert_eq!(entry.clone(), entry);
+    assert_ne!(ALL_HEADERS_TABLE[1], ALL_HEADERS_TABLE[2]);
+    assert_eq!(
+        format!("{entry:?}"),
+        "StaticTableEntry { classification: Declaration(1), name: \"accept\" }"
     );
 }
 
 #[test]
 fn interprets_fields_identified_by_a_static_table() {
-    const TABLE: [StaticTableEntry; 6] = static_table_entries(&AllHeaders::NAMES, &MOCK_TABLE);
     // A decoder resolves static indexes through the table, and passes literal names as text.
     let indexed = |index: usize, value: &'static str| {
-        (TABLE[index].name(MOCK_TABLE[index]), value.as_bytes())
+        (
+            FieldName::Indexed(ALL_HEADERS_TABLE[index]),
+            value.as_bytes(),
+        )
     };
     let fields = [
         (FieldName::Text("host"), &b"example.com"[..]),
@@ -444,22 +486,21 @@ fn interprets_fields_identified_by_a_static_table() {
         ),
         (2, Some("abc"))
     );
-    // An entry the table found undeclared for this section reaches the next one as text, since that section may declare it.
-    assert_eq!(
-        rest,
-        [FieldRef {
-            position: 3,
-            name: FieldName::Text("user-agent"),
-            value: b"curl/8"
-        }]
-    );
+    // An entry the table found undeclared for this section reaches the next one by name, since that section may declare it.
+    assert_eq!(rest, [FieldRef::new(3, "user-agent", b"curl/8")]);
     // Forbidden and duplicate fields are caught by index as they are by name.
-    let error =
-        AllHeaders::interpret([(FieldName::Text("host"), &b"h"[..]), indexed(4, "chunked")])
-            .unwrap_err();
+    let error = AllHeaders::interpret([
+        (ALL_HEADERS_TABLE[0], &b"h"[..]),
+        (ALL_HEADERS_TABLE[4], b"chunked"),
+    ])
+    .unwrap_err();
     assert_eq!(
         (error.kind(), error.name(), error.position()),
-        (FieldErrorKind::Forbidden, Some("transfer-encoding"), 1)
+        (
+            FieldErrorKind::Forbidden,
+            Some("transfer-encoding"),
+            Some(1)
+        )
     );
     let error = AllHeaders::interpret([
         (FieldName::Text("host"), &b"h"[..]),
@@ -468,12 +509,20 @@ fn interprets_fields_identified_by_a_static_table() {
     ])
     .unwrap_err();
     assert_eq!(error.kind(), FieldErrorKind::Duplicate { first: 1 });
+    let names = [indexed(5, "").0, FieldName::Text("x")];
+    assert_eq!(names.map(|name| name.as_str()), ["user-agent", "x"]);
+    assert_eq!(names[0].clone(), names[0]);
+    assert_eq!(names[1], FieldName::Text("x"));
+    assert_ne!(names[0], names[1]);
+    assert_ne!(indexed(1, "").0, indexed(2, "").0);
+    assert_eq!(format!("{:?}", names[1]), "Text(\"x\")");
+    assert!(format!("{:?}", names[0]).starts_with("Indexed(StaticTableEntry"));
 }
 
 #[derive(Debug, PartialEq)]
 struct Strict(String);
 
-impl FieldType for Strict {
+impl FieldType<'_> for Strict {
     type Combination = List;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -507,7 +556,7 @@ fn declarations_can_override_invalid_value_policies() {
         FieldErrorKind::Invalid(FieldValueError::new("unterminated quoted string"))
     );
     let headers = Overrides::interpret([
-        ("X-List", &b"\"unterminated, a"[..]),
+        ("X-List", &b"a, \"unterminated"[..]),
         ("X-List", b"b"),
         ("Content-Length", b"x"),
         ("Set-Cookie", b"caf\xc3\xa9"),
@@ -517,7 +566,7 @@ fn declarations_can_override_invalid_value_policies() {
     assert_eq!(
         headers.list,
         [Strict("b".into())],
-        "an unterminated list is skipped as a whole"
+        "an unterminated list is skipped as a whole, including the elements before the error"
     );
     assert!(headers.accept.is_empty());
     assert_eq!(headers.content_length, None);
@@ -544,34 +593,70 @@ fn declarations_can_override_invalid_value_policies() {
     }
 }
 
+#[derive(Debug, FieldSection)]
+struct Advisories {
+    #[field("x-optional")]
+    optional: Option<Advisory>,
+    #[field("x-required")]
+    required: Advisory,
+    #[field("x-strict", invalid = "error")]
+    strict: Advisory,
+}
+
+#[test]
+fn required_fields_always_treat_invalid_values_as_errors() {
+    let headers =
+        Advisories::interpret([("X-Optional", "x"), ("X-Required", "1"), ("X-Strict", "2")])
+            .unwrap();
+    assert_eq!(
+        (headers.optional, headers.required, headers.strict),
+        (None, Advisory(1), Advisory(2))
+    );
+    let error = Advisories::interpret([("X-Strict", "2"), ("X-Required", "x")]).unwrap_err();
+    assert_eq!(
+        (error.kind(), error.name(), error.position()),
+        (
+            FieldErrorKind::Invalid(FieldValueError::new("not a number")),
+            Some("x-required"),
+            Some(1)
+        ),
+        "the field type ignores invalid values, but the section requires this one"
+    );
+}
+
 #[test]
 fn rejects_unknown_fields_classified_by_a_static_table() {
-    let error =
-        OnlyHost::interpret([(FieldName::Undeclared("user-agent"), &b"x"[..])]).unwrap_err();
+    const TABLE: [StaticTableEntry<OnlyHost>; 1] =
+        static_table_entries::<OnlyHost, 1>(&["user-agent"]);
+    let error = OnlyHost::interpret([(TABLE[0], &b"x"[..])]).unwrap_err();
     assert_eq!(error.kind(), FieldErrorKind::Unknown);
     // An empty name is never declared.
     assert!(OnlyHost::interpret([("", &b"x"[..])]).is_err());
     assert!(ApplicationHeaders::interpret([("", &b"x"[..])]).is_ok());
 }
 
+/// A section that flattens a strict one, without saying anything about unknown fields itself.
+#[derive(Debug, FieldSection)]
+struct ContainsStrict {
+    #[fields(flatten)]
+    strict: OnlyHost,
+    #[field("x-request-id")]
+    request_id: Option<Text>,
+}
+
 #[test]
-fn rejects_classifications_made_for_another_section() {
-    let error = AllHeaders::interpret([(FieldName::Declaration(9, "x"), &b"v"[..])]).unwrap_err();
+fn strictness_carries_over_from_flattened_sections() {
+    assert!(ContainsStrict::NAMES.rejects_unknown());
+    assert!(!AllHeaders::NAMES.rejects_unknown());
+    let headers = ContainsStrict::interpret([("Host", "h"), ("X-Request-Id", "a")]).unwrap();
     assert_eq!(
-        (error.kind(), error.name(), error.position()),
-        (FieldErrorKind::Declaration, None, 0)
+        (headers.strict.host, headers.request_id),
+        (Some(Text("h".into())), Some(Text("a".into())))
     );
+    let error = ContainsStrict::interpret([("Host", "h"), ("Evil", "x")]).unwrap_err();
     assert_eq!(
-        error.to_string(),
-        "field at position 0 has a declaration id this section does not have"
-    );
-    let error = PartHeaders::interpret([(FieldName::Declaration(2, "x"), &b"v"[..])]).unwrap_err();
-    assert_eq!(error.kind(), FieldErrorKind::Declaration);
-    let error = AllHeaders::interpret([(FieldName::Forbidden("upgrade"), &b"v"[..])]).unwrap_err();
-    assert_eq!(
-        error.kind(),
-        FieldErrorKind::Declaration,
-        "the section does not forbid `upgrade`, so the table was not built for it"
+        (error.kind(), error.position()),
+        (FieldErrorKind::Unknown, Some(1))
     );
 }
 
@@ -580,7 +665,7 @@ fn flattened_sections_report_their_own_missing_fields() {
     let error = AllHeaders::interpret(pairs(&[("Accept", "*/*")])).unwrap_err();
     assert_eq!(
         (error.kind(), error.name(), error.position()),
-        (FieldErrorKind::Missing, Some("host"), 1)
+        (FieldErrorKind::Missing, Some("host"), None)
     );
     assert_eq!(error.to_string(), "missing required host field");
 }
@@ -606,21 +691,159 @@ fn owned_remainders_can_be_interpreted_again() {
     let request = [("Host", "h"), ("Accept", "text/html"), ("X-Trace", "1")];
     let (_, rest): (TransportHeaders, OwnedFields) =
         TransportHeaders::partition(pairs(&request)).unwrap();
-    assert_eq!((rest.len(), rest.is_empty()), (2, false));
+    assert_eq!(
+        (rest.len(), rest.is_empty(), rest.as_slice().len()),
+        (2, false, 2)
+    );
     let first = rest.iter().next().unwrap();
     assert_eq!(
         (first.position(), first.name(), first.value()),
         (1, "Accept", &b"text/html"[..])
     );
+    assert_eq!(
+        first.as_field_ref(),
+        FieldRef::new(1, "Accept", b"text/html")
+    );
     assert_eq!((&rest).into_iter().count(), 2);
-    let application = ApplicationHeaders::interpret(rest.as_field_refs()).unwrap();
+    let application = ApplicationHeaders::interpret(&rest).unwrap();
     assert_eq!(application.accept.len(), 1);
+    let collected: OwnedFields = rest.iter().map(|field| field.as_field_ref()).collect();
+    assert_eq!(collected, rest);
+    assert_eq!(
+        rest.into_iter()
+            .map(|field| field.position())
+            .collect::<Vec<_>>(),
+        [1, 2]
+    );
     assert!(OwnedFields::default().is_empty());
-    let names = [
-        FieldName::Text("a"),
-        FieldName::Declaration(0, "b"),
-        FieldName::Forbidden("c"),
-        FieldName::Undeclared("d"),
+}
+
+/// A section that borrows its values from the input.
+#[derive(Debug, FieldSection)]
+#[fields(forbid("transfer-encoding"))]
+struct BorrowedRequest<'a> {
+    #[field("host")]
+    host: Borrowed<'a>,
+    #[field("x-request-id")]
+    request_id: Option<Borrowed<'a>>,
+}
+
+/// A borrowing section that flattens another.
+#[derive(Debug, FieldSection)]
+struct BorrowedApplication<'a> {
+    #[fields(flatten)]
+    request: BorrowedRequest<'a>,
+    #[field("accept")]
+    accept: Vec<Accept>,
+    #[fields(flatten)]
+    trace: OnlyTrace<'a>,
+}
+
+#[derive(Debug, FieldSection)]
+struct OnlyTrace<'b> {
+    #[field("x-trace")]
+    trace: Option<Borrowed<'b>>,
+}
+
+#[test]
+fn sections_can_borrow_their_values() {
+    let input = String::from("Host: example.com");
+    let value = &input.as_bytes()[6..];
+    let request = BorrowedRequest::interpret([("Host", value), ("X-Request-Id", b"abc")]).unwrap();
+    assert_eq!(request.host, Borrowed("example.com"));
+    assert_eq!(request.request_id, Some(Borrowed("abc")));
+    assert!(
+        std::ptr::eq(request.host.0.as_ptr(), value.as_ptr()),
+        "the value is not copied"
+    );
+
+    // A table for a borrowing section is built for its `'static` form, and serves it with any lifetime.
+    const TABLE: [StaticTableEntry<BorrowedApplication<'static>>; 4] =
+        static_table_entries::<BorrowedApplication<'static>, 4>(&[
+            "host",
+            "accept",
+            "x-trace",
+            "transfer-encoding",
+        ]);
+    let fields = [
+        (TABLE[0], value),
+        (TABLE[1], b"text/html"),
+        (TABLE[2], b"t"),
     ];
-    assert_eq!(names.map(|name| name.as_str()), ["a", "b", "c", "d"]);
+    let application = BorrowedApplication::interpret(fields).unwrap();
+    assert_eq!(
+        (
+            application.request.host,
+            application.accept.len(),
+            application.trace.trace
+        ),
+        (Borrowed("example.com"), 1, Some(Borrowed("t")))
+    );
+    let error =
+        BorrowedApplication::interpret([(TABLE[0], value), (TABLE[3], b"chunked")]).unwrap_err();
+    assert_eq!(error.kind(), FieldErrorKind::Forbidden);
+    let error =
+        BorrowedApplication::interpret([(FieldName::Text("x-trace"), &b"t"[..])]).unwrap_err();
+    assert_eq!(error.kind(), FieldErrorKind::Missing);
+}
+
+#[test]
+fn accepts_fields_in_every_supported_form() {
+    let pairs = [("Host", &b"h"[..])];
+    assert_eq!(
+        TransportHeaders::interpret(&pairs).unwrap().host,
+        Text("h".into())
+    );
+    assert_eq!(
+        TransportHeaders::interpret([("Host", "h")]).unwrap().host,
+        Text("h".into())
+    );
+    let references = [FieldRef::new(4, "Host", b"h")];
+    assert_eq!(
+        TransportHeaders::interpret(&references).unwrap().host,
+        Text("h".into())
+    );
+    let error = OnlyHost::interpret(&[FieldRef::new(7, "X", b"")]).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(7),
+        "a field reference keeps its own position"
+    );
+}
+
+/// A section that declares nothing and only forbids, as a protocol crate might provide for trailers.
+#[derive(Debug, FieldSection)]
+#[fields(forbid("content-length"))]
+struct TrailerRules {}
+
+#[derive(Debug, FieldSection)]
+struct Trailers {
+    #[fields(flatten)]
+    _rules: TrailerRules,
+    #[field("x-checksum")]
+    checksum: Option<Text>,
+}
+
+#[test]
+fn sections_can_declare_nothing_and_only_forbid() {
+    assert!(TrailerRules::interpret([("X-Checksum", "abc")]).is_ok());
+    let trailers = Trailers::interpret([("X-Checksum", "abc")]).unwrap();
+    assert_eq!(trailers.checksum, Some(Text("abc".into())));
+    let error = Trailers::interpret([("Content-Length", "5")]).unwrap_err();
+    assert_eq!(error.kind(), FieldErrorKind::Forbidden);
+    // A table built for the composite section routes ids past the empty one.
+    const TABLE: [StaticTableEntry<Trailers>; 2] =
+        static_table_entries::<Trailers, 2>(&["x-checksum", "content-length"]);
+    assert_eq!(
+        Trailers::interpret([(TABLE[0], &b"abc"[..])])
+            .unwrap()
+            .checksum,
+        Some(Text("abc".into()))
+    );
+    assert_eq!(
+        Trailers::interpret([(TABLE[1], &b"5"[..])])
+            .unwrap_err()
+            .kind(),
+        FieldErrorKind::Forbidden
+    );
 }

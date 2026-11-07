@@ -10,7 +10,7 @@ use base_message::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Seen(usize);
 
-impl FieldType for Seen {
+impl FieldType<'_> for Seen {
     type Combination = Singleton;
 
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
@@ -85,5 +85,5 @@ request_section! {
 }
 
 /// A stand-in for a protocol's static table: the declared names themselves, as in the recorded measurement. A real table, such as HPACK's, would also hold names the section does not declare.
-pub(crate) const STATIC_TABLE: [StaticTableEntry; DECLARATIONS] =
-    static_table_entries(&RequestSection::NAMES, &DECLARED_NAMES);
+pub(crate) const STATIC_TABLE: [StaticTableEntry<RequestSection>; DECLARATIONS] =
+    static_table_entries::<RequestSection, DECLARATIONS>(&DECLARED_NAMES);

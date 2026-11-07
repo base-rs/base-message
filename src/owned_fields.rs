@@ -1,10 +1,12 @@
 // Released under the MIT License.
 // Copyright, 2026, by Samuel Williams.
 
+use crate::__private::{IncomingField, IncomingName};
 use crate::FieldRef;
+use crate::field_ref::IntoField;
 
 /// One field, owned, with its position in the original section.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct OwnedField {
     position: usize,
     name: String,
@@ -22,15 +24,71 @@ impl OwnedField {
         &self.name
     }
 
+    /// The value, as it was passed to the section.
     pub fn value(&self) -> &[u8] {
         &self.value
+    }
+
+    /// The field, borrowed, so that another section can interpret it.
+    pub fn as_field_ref(&self) -> FieldRef<'_> {
+        FieldRef::new(self.position, &self.name, &self.value)
+    }
+}
+
+impl<'a> From<FieldRef<'a>> for OwnedField {
+    fn from(field: FieldRef<'a>) -> Self {
+        Self {
+            position: field.position(),
+            name: field.name().to_owned(),
+            value: field.value().to_vec(),
+        }
+    }
+}
+
+impl<'a, S> IntoField<'a, S> for &'a OwnedField {
+    fn into_field(self, _index: usize) -> IncomingField<'a> {
+        IncomingField {
+            position: self.position,
+            name: IncomingName::Text(&self.name),
+            value: &self.value,
+        }
     }
 }
 
 /// A remainder that owns its fields, for keeping the fields a section does not take beyond the lifetime of the input, in order.
 ///
-/// Use a `Vec<FieldRef>` instead to borrow them without copying.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Use a `Vec<FieldRef>` instead to borrow them without copying. A section interprets owned fields by reference, keeping their original positions:
+///
+/// ```
+/// use base_message::{FieldSection, FieldType, FieldValueError, OwnedFields, ascii_text, combination::Singleton};
+///
+/// struct Text(String);
+///
+/// impl FieldType<'_> for Text {
+///     type Combination = Singleton;
+///     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
+///         Ok(Self(ascii_text(value)?.to_owned()))
+///     }
+/// }
+///
+/// #[derive(FieldSection)]
+/// struct Transport {
+///     #[field("host")]
+///     host: Text,
+/// }
+///
+/// #[derive(FieldSection)]
+/// struct Application {
+///     #[field("x-request-id")]
+///     request_id: Option<Text>,
+/// }
+///
+/// let (_, rest): (Transport, OwnedFields) = Transport::partition([("Host", "example.com"), ("X-Request-Id", "abc")])?;
+/// let application = Application::interpret(&rest)?;
+/// assert_eq!(application.request_id.map(|id| id.0).as_deref(), Some("abc"));
+/// # Ok::<(), base_message::FieldError>(())
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct OwnedFields {
     fields: Vec<OwnedField>,
 }
@@ -41,10 +99,17 @@ impl OwnedFields {
         self.fields.iter()
     }
 
+    /// The fields, in order, as a slice.
+    pub fn as_slice(&self) -> &[OwnedField] {
+        &self.fields
+    }
+
+    /// The number of fields.
     pub fn len(&self) -> usize {
         self.fields.len()
     }
 
+    /// Whether there are no fields.
     pub fn is_empty(&self) -> bool {
         self.fields.is_empty()
     }
@@ -56,25 +121,19 @@ impl OwnedFields {
             .filter(move |field| field.name.eq_ignore_ascii_case(name))
             .map(OwnedField::value)
     }
-
-    /// The fields as borrowed [`FieldRef`]s with their original positions, so another section can interpret them.
-    pub fn as_field_refs(&self) -> impl Iterator<Item = FieldRef<'_>> {
-        self.fields.iter().map(|field| FieldRef {
-            position: field.position,
-            name: crate::FieldName::Text(&field.name),
-            value: &field.value,
-        })
-    }
 }
 
 impl<'a> Extend<FieldRef<'a>> for OwnedFields {
     fn extend<I: IntoIterator<Item = FieldRef<'a>>>(&mut self, fields: I) {
-        self.fields
-            .extend(fields.into_iter().map(|field| OwnedField {
-                position: field.position,
-                name: field.name.as_str().to_owned(),
-                value: field.value.to_vec(),
-            }));
+        self.fields.extend(fields.into_iter().map(OwnedField::from));
+    }
+}
+
+impl<'a> FromIterator<FieldRef<'a>> for OwnedFields {
+    fn from_iter<I: IntoIterator<Item = FieldRef<'a>>>(fields: I) -> Self {
+        Self {
+            fields: fields.into_iter().map(OwnedField::from).collect(),
+        }
     }
 }
 
@@ -84,5 +143,14 @@ impl<'a> IntoIterator for &'a OwnedFields {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl IntoIterator for OwnedFields {
+    type Item = OwnedField;
+    type IntoIter = std::vec::IntoIter<OwnedField>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.fields.into_iter()
     }
 }

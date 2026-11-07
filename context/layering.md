@@ -13,7 +13,7 @@ use base_message::{FieldRef, FieldSection, FieldType, FieldValueError, ascii_tex
 
 struct Text(String);
 
-impl FieldType for Text {
+impl FieldType<'_> for Text {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -22,7 +22,7 @@ impl FieldType for Text {
 
 struct Accept(String);
 
-impl FieldType for Accept {
+impl FieldType<'_> for Accept {
     type Combination = List;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -51,7 +51,7 @@ assert_eq!(transport.host.0, "example.com");
 assert_eq!(application.request_id.map(|id| id.0).as_deref(), Some("abc"));
 
 // Only what neither layer declares is left, at its original position.
-assert_eq!((rest.len(), rest[0].position, rest[0].name.as_str()), (1, 3, "User-Agent"));
+assert_eq!((rest.len(), rest[0].position(), rest[0].name()), (1, 3, "User-Agent"));
 ```
 
 - The remainder borrows names and values from the input, so a `Vec<FieldRef>` copies nothing. Collect into `OwnedFields` instead to keep the fields beyond the input's lifetime.
@@ -59,7 +59,7 @@ assert_eq!((rest.len(), rest[0].position, rest[0].name.as_str()), (1, 3, "User-A
 - A forbidden field is an error, never part of the remainder, so a later layer is never handed a field an earlier one refused.
 - `interpret` is `partition` with the remainder discarded. A section with `unknown = "reject"` has no remainder.
 
-Declare everything a layer reads in its section, and let the rest fall through: a field no section declares costs a failed name check at each layer and is never parsed or stored.
+Declare everything a layer reads in its section, and let the rest fall through: a field no section declares costs a failed name check at each layer, and is never parsed. `partition` keeps it in the remainder, borrowed unless the remainder is `OwnedFields`; `interpret` drops it.
 
 ## Composing sections
 
@@ -70,7 +70,7 @@ use base_message::{FieldSection, FieldType, FieldValueError, ascii_text, combina
 
 struct Text(String);
 
-impl FieldType for Text {
+impl FieldType<'_> for Text {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -95,7 +95,7 @@ let everything = Everything::interpret([("Host", &b"example.com"[..]), ("X-Reque
 assert_eq!(everything.standard.host.map(|host| host.0).as_deref(), Some("example.com"));
 ```
 
-A name declared or forbidden both by a section and by a section it flattens is a compile-time error, because the two declarations would disagree about the field and one would silently never receive values. Flattening composes sections; it does not override them. To interpret a field differently from a library's section, declare it in a section of your own and interpret the fields with that.
+A name declared or forbidden both by a section and by a section it flattens is a compile-time error, because the two declarations would disagree about the field and one would silently never receive values. The error names the field and points at its declaration. Flattening composes sections; it does not override them, and a flattened section that rejects unknown fields makes the whole section reject them. To interpret a field differently from a library's section, declare it in a section of your own and interpret the fields with that.
 
 ## Trailers
 
@@ -106,7 +106,7 @@ use base_message::{FieldErrorKind, FieldSection, FieldType, FieldValueError, asc
 
 struct Text(String);
 
-impl FieldType for Text {
+impl FieldType<'_> for Text {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -143,7 +143,7 @@ assert_eq!(headers.etag.map(|etag| etag.0).as_deref(), Some("\"v1\""));
 assert_eq!(trailers.etag.map(|etag| etag.0).as_deref(), Some("\"v2\""));
 
 let error = Trailers::interpret([("X-Checksum", &b"abc"[..]), ("Content-Length", b"5")]).err().unwrap();
-assert_eq!((error.kind(), error.position()), (FieldErrorKind::Forbidden, 1));
+assert_eq!((error.kind(), error.position()), (FieldErrorKind::Forbidden, Some(1)));
 ```
 
 - Because nothing is merged, a trailer field no section declares is ignored, as in a header section, and no layer ever acts on it. Forbidding a field makes it an error instead, for fields whose presence in trailers signals a broken or hostile peer.
@@ -152,14 +152,14 @@ assert_eq!((error.kind(), error.position()), (FieldErrorKind::Forbidden, 1));
 
 ## Static tables
 
-HTTP/2's HPACK and HTTP/3's QPACK identify common fields by an index into a static table, and the two tables differ. A decoder can classify each table entry for a section once, at compile time, and then interpret indexed fields by declaration id, without comparing names:
+HTTP/2's HPACK and HTTP/3's QPACK identify common fields by an index into a static table, and the two tables differ. A decoder can classify each table entry for a section once, at compile time, and then interpret indexed fields by declaration id, without comparing names. Each entry is typed by the section it was classified for, so passing one section's entries to another is a compile-time error rather than a misreading:
 
 ```rust
 use base_message::{FieldName, FieldSection, FieldType, FieldValueError, StaticTableEntry, ascii_text, combination::Singleton, static_table_entries};
 
 struct Text(String);
 
-impl FieldType for Text {
+impl FieldType<'_> for Text {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -175,15 +175,15 @@ struct Request {
 
 // A stand-in for a protocol's static table of names.
 const NAMES: [&str; 3] = [":authority", "host", "transfer-encoding"];
-const TABLE: [StaticTableEntry; 3] = static_table_entries(&Request::NAMES, &NAMES);
+const TABLE: [StaticTableEntry<Request>; 3] = static_table_entries::<Request, 3>(&NAMES);
 
-// A decoder passes indexed fields with the table's classification, and literal names as text.
-let fields = [(TABLE[1].name(NAMES[1]), &b"example.com"[..]), (FieldName::Text("user-agent"), b"curl/8")];
+// A decoder passes indexed fields as their table entries, and literal names as text.
+let fields = [(FieldName::Indexed(TABLE[1]), &b"example.com"[..]), (FieldName::Text("user-agent"), b"curl/8")];
 let request = Request::interpret(fields).unwrap();
 assert_eq!(request.host.map(|host| host.0).as_deref(), Some("example.com"));
 
-let refused = Request::interpret([(TABLE[2].name(NAMES[2]), &b"chunked"[..])]);
+let refused = Request::interpret([(TABLE[2], &b"chunked"[..])]);
 assert!(refused.is_err(), "a forbidden field is refused by index too");
 ```
 
-The table is a constant for each section type: 62 entries for HPACK and 99 for QPACK. A classification belongs to the section it was made for. A field classified as undeclared reaches a later layer's remainder as text, since that layer may declare it, and a declaration id the section does not have is an error rather than a silent misreading.
+The table is a constant for each section type: 61 entries for HPACK and 99 for QPACK. An entry carries the table's own name, so a field classified as undeclared reaches a later layer's remainder by that name, since that layer may declare it. For a section with a lifetime, build the table for its `'static` form, such as `static_table_entries::<Request<'static>, 61>`; the entries serve the section with any lifetime.

@@ -1,17 +1,23 @@
-error[E0080]: evaluation panicked: a field name is declared or forbidden by both this section and a section it flattens, so the two would disagree about it
-  --> tests/ui/shadowing.rs:38:8
+error[E0080]: evaluation panicked: the field name "host" is also declared or forbidden by the section flattened as `inner`, so the two would disagree about it
+  --> tests/ui/shadowing.rs:41:13
    |
-38 | struct DeclaresInnerName {
-   |        ^^^^^^^^^^^^^^^^^ evaluation of `_` failed here
+41 |     #[field("host")]
+   |             ^^^^^^ evaluation of `_::_` failed here
 
-error[E0080]: evaluation panicked: a field name is declared or forbidden by both this section and a section it flattens, so the two would disagree about it
-  --> tests/ui/shadowing.rs:46:8
+error[E0080]: evaluation panicked: the field name "te" is also declared or forbidden by the section flattened as `inner`, so the two would disagree about it
+  --> tests/ui/shadowing.rs:49:13
    |
-46 | struct DeclaresInnerForbiddenName {
-   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here
+49 |     #[field("te")]
+   |             ^^^^ evaluation of `_::_` failed here
 
-error[E0080]: evaluation panicked: a field name is declared or forbidden by both this section and a section it flattens, so the two would disagree about it
-  --> tests/ui/shadowing.rs:54:8
+error[E0080]: evaluation panicked: the sections flattened as `first` and `second` both declare or forbid a field name, so they would disagree about it
+  --> tests/ui/shadowing.rs:58:5
    |
-54 | struct FlattensTwice {
-   |        ^^^^^^^^^^^^^ evaluation of `_` failed here
+58 |     second: Inner,
+   |     ^^^^^^ evaluation of `_::_` failed here
+
+error[E0080]: evaluation panicked: the section flattened as `strict` rejects unknown fields, so this section cannot ignore them
+  --> tests/ui/shadowing.rs:69:20
+   |
+69 | #[fields(unknown = "ignore")]
+   |                    ^^^^^^^^ evaluation of `_::_` failed here
