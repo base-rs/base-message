@@ -1,0 +1,32 @@
+[package]
+name = "base-message-benchmark-interpretation"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Reproducible field-section interpretation workloads for base-message"
+
+[dependencies]
+# Records and `Interval` only; the runner is not linked into the measured binary.
+base-benchmark = { version = "0.1.0", default-features = false }
+base-message = { path = "../.." }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+# The runner, for the smoke test that drives this binary through the shared collector.
+base-benchmark = "0.1.0"
+tempfile = "3.27.0"
+
+# Scenarios for `cargo bake benchmark:*` and the `base-benchmark` command. Every scenario compares interpretation by name with interpretation by static-table id in each round.
+[package.metadata.base-benchmark]
+smoke-arguments = ["--iterations", "3", "--warmup", "1"]
+variants = [{ name = "text", arguments = ["--variant", "text"] }, { name = "indexed", arguments = ["--variant", "indexed"] }]
+
+[[package.metadata.base-benchmark.scenario]]
+name = "interpret"
+arguments = ["--workload", "interpret"]
+
+[[package.metadata.base-benchmark.scenario]]
+name = "partition"
+arguments = ["--workload", "partition"]
