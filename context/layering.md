@@ -97,6 +97,59 @@ assert_eq!(everything.standard.host.map(|host| host.0).as_deref(), Some("example
 
 A name declared or forbidden both by a section and by a section it flattens is a compile-time error, because the two declarations would disagree about the field and one would silently never receive values. Flattening composes sections; it does not override them. To interpret a field differently from a library's section, declare it in a section of your own and interpret the fields with that.
 
+## Trailers
+
+A trailer section is a section of its own. Interpret the trailer fields with their own struct, never by adding them to the header fields: RFC 9110 section 6.5.1 forbids merging a trailer field into the header section unless the field's definition says how, so that a trailer cannot quietly change metadata a recipient has already acted on. A protocol crate supplies the fields its trailers must not carry as a section that declares nothing and only forbids, and an application flattens it into each trailer section it declares:
+
+```rust
+use base_message::{FieldErrorKind, FieldSection, FieldType, FieldValueError, ascii_text, combination::Singleton};
+
+struct Text(String);
+
+impl FieldType for Text {
+    type Combination = Singleton;
+    fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
+        Ok(Self(ascii_text(value)?.to_owned()))
+    }
+}
+
+/// What a protocol crate would provide: the fields that must not appear in trailers.
+#[derive(FieldSection)]
+#[fields(forbid("content-length", "transfer-encoding", "host", "authorization"))]
+struct TrailerRules {}
+
+#[derive(FieldSection)]
+struct Headers {
+    #[field("etag")]
+    etag: Option<Text>,
+}
+
+#[derive(FieldSection)]
+struct Trailers {
+    #[fields(flatten)]
+    _rules: TrailerRules,
+    #[field("etag")]
+    etag: Option<Text>,
+    #[field("x-checksum")]
+    checksum: Option<Text>,
+}
+
+let headers = Headers::interpret([("ETag", &b"\"v1\""[..])]).unwrap();
+let trailers = Trailers::interpret([("X-Checksum", &b"abc"[..]), ("ETag", b"\"v2\""), ("X-Unknown", b"1")]).unwrap();
+assert_eq!(trailers.checksum.map(|checksum| checksum.0).as_deref(), Some("abc"));
+
+// The sections stay apart, so which ETag to believe is the application's decision.
+assert_eq!(headers.etag.map(|etag| etag.0).as_deref(), Some("\"v1\""));
+assert_eq!(trailers.etag.map(|etag| etag.0).as_deref(), Some("\"v2\""));
+
+let error = Trailers::interpret([("X-Checksum", &b"abc"[..]), ("Content-Length", b"5")]).err().unwrap();
+assert_eq!((error.kind(), error.position()), (FieldErrorKind::Forbidden, 1));
+```
+
+- Because nothing is merged, a trailer field no section declares is ignored, as in a header section, and no layer ever acts on it. Forbidding a field makes it an error instead, for fields whose presence in trailers signals a broken or hostile peer.
+- Declaring a field the flattened rules forbid, such as `content-length`, is a compile-time error, so an application cannot read one from trailers by mistake.
+- Positions count from the start of the trailer section, and the caller knows which section an error came from, because it chose the section to interpret.
+
 ## Static tables
 
 HTTP/2's HPACK and HTTP/3's QPACK identify common fields by an index into a static table, and the two tables differ. A decoder can classify each table entry for a section once, at compile time, and then interpret indexed fields by declaration id, without comparing names:
