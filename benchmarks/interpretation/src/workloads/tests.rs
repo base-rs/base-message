@@ -39,7 +39,7 @@ fn both_variants_interpret_the_request_as_expected() {
     assert_eq!(
         indexed
             .iter()
-            .filter(|(name, _)| matches!(name, FieldName::Declaration(..)))
+            .filter(|(name, _)| matches!(name, FieldName::Indexed(..)))
             .count(),
         9
     );

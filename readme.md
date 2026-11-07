@@ -2,7 +2,7 @@
 
 The header and trailer field sections of protocol messages, interpreted into typed structs for Rust.
 
-HTTP, email, and MIME parts share one message structure: sections of named fields around the content. Each `FieldType` says how its instances combine, as a singleton, a list, or separate values, and how one value parses. `#[derive(FieldSection)]` generates the interpretation of a whole section: duplicate singletons are errors, lists respect quoted commas, forbidden fields are refused, and undeclared fields are ignored or passed on to the next layer. Name dispatch is generated at compile time, and a protocol's static table, such as HPACK's, can identify fields without comparing names at all.
+HTTP, email, and MIME parts share one message structure: sections of named fields around the content. Each `FieldType` says how its instances combine, as a singleton, a list, or separate values, and how one value parses. `#[derive(FieldSection)]` generates the interpretation of a whole section: duplicate singletons are errors, lists respect quoted commas, forbidden fields are refused, and undeclared fields are ignored or passed on to the next layer. Field types and sections can borrow their values from the parse buffer instead of copying them. Name dispatch is generated at compile time, and a protocol's static table, such as HPACK's, can identify fields without comparing names at all.
 
 ## Usage
 
@@ -11,7 +11,7 @@ use base_message::{FieldSection, FieldType, FieldValueError, ascii_text, combina
 
 struct Host(String);
 
-impl FieldType for Host {
+impl FieldType<'_> for Host {
     type Combination = Singleton;
     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self(ascii_text(value)?.to_owned()))
@@ -25,7 +25,7 @@ struct Request {
     host: Host,
 }
 
-let request = Request::interpret([("Host", &b"example.com"[..]), ("User-Agent", b"curl/8")]).unwrap();
+let request = Request::interpret([("Host", "example.com"), ("User-Agent", "curl/8")]).unwrap();
 assert_eq!(request.host.0, "example.com");
 ```
 

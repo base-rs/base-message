@@ -1,23 +1,13 @@
 // Released under the MIT License.
 // Copyright, 2026, by Samuel Williams.
 
-use base_message::{FieldNames, StaticTableEntry, static_table_entries};
+use base_message::{FieldError, FieldNames, FieldSection, static_table_entries};
 
-static INNER: FieldNames = FieldNames {
-    own: &["date", "host"],
-    forbidden: &["upgrade"],
-    flattened: &[],
-};
-static OTHER: FieldNames = FieldNames {
-    own: &["accept"],
-    forbidden: &[],
-    flattened: &[],
-};
-static OUTER: FieldNames = FieldNames {
-    own: &["x-id"],
-    forbidden: &["te"],
-    flattened: &[&INNER, &OTHER],
-};
+static INNER: FieldNames = FieldNames::new(&["date", "host"], &["upgrade"], &[], false);
+static OTHER: FieldNames = FieldNames::new(&["accept"], &[], &[], false);
+static STRICT: FieldNames = FieldNames::new(&[], &[], &[], true);
+static OUTER: FieldNames = FieldNames::new(&["x-id"], &["te"], &[&INNER, &OTHER], false);
+static DEEP: FieldNames = FieldNames::new(&[], &[], &[&OTHER, &STRICT], false);
 
 #[test]
 fn numbers_declarations_and_finds_forbidden_names_at_every_level() {
@@ -34,106 +24,70 @@ fn numbers_declarations_and_finds_forbidden_names_at_every_level() {
             && !OUTER.forbids("host")
             && !OUTER.forbids("accept")
     );
-    let table = static_table_entries(&OUTER, &["host", "upgrade", "user-agent", "accept"]);
-    assert_eq!(
-        table,
-        [
-            StaticTableEntry::Declaration(2),
-            StaticTableEntry::Forbidden,
-            StaticTableEntry::Undeclared,
-            StaticTableEntry::Declaration(3)
-        ]
+    assert!(OUTER.names("upgrade") && OUTER.names("accept") && !OUTER.names("missing"));
+    assert!(format!("{:?}", OUTER.clone()).contains("x-id"));
+}
+
+#[test]
+fn finds_rejection_of_unknown_fields_at_any_level() {
+    assert!(STRICT.rejects_unknown());
+    assert!(DEEP.rejects_unknown());
+    assert!(!OUTER.rejects_unknown());
+}
+
+#[test]
+fn finds_names_shared_at_any_level() {
+    let shares = |left: &FieldNames, right: &FieldNames| left.shares_names_with(right);
+    assert!(shares(&INNER, &OUTER), "a declared name");
+    assert!(
+        shares(&FieldNames::new(&[], &["upgrade"], &[], false), &INNER),
+        "a forbidden name"
+    );
+    assert!(
+        shares(&DEEP, &OTHER),
+        "a name declared by a flattened section"
+    );
+    assert!(!shares(&OTHER, &INNER));
+    assert!(!shares(&STRICT, &OUTER));
+    assert!(
+        !shares(&OUTER, &FieldNames::new(&["unrelated"], &[], &[], false)),
+        "every level searched, nothing shared"
     );
 }
 
-static TWICE: FieldNames = FieldNames {
-    own: &["a", "a"],
-    forbidden: &[],
-    flattened: &[],
-};
-static DECLARED_AND_FORBIDDEN: FieldNames = FieldNames {
-    own: &["a"],
-    forbidden: &["a"],
-    flattened: &[],
-};
-static DECLARES_INNER: FieldNames = FieldNames {
-    own: &["date"],
-    forbidden: &[],
-    flattened: &[&INNER],
-};
-static FORBIDS_INNER: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &["upgrade"],
-    flattened: &[&INNER],
-};
-static FLATTENS_TWICE: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &[],
-    flattened: &[&INNER, &INNER],
-};
-static FLATTENS_CONFLICT: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &[],
-    flattened: &[&TWICE],
-};
-static WRAPS_OTHER: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &[],
-    flattened: &[&OTHER],
-};
-static SHARES_DEEPLY: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &[],
-    flattened: &[&OTHER, &WRAPS_OTHER],
-};
-static SHARES_FROM_DEEPER: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &[],
-    flattened: &[&WRAPS_OTHER, &OTHER],
-};
-static UNRELATED_THEN_SHARED: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &[],
-    flattened: &[&INNER, &WRAPS_OTHER],
-};
-static SHARES_AFTER_UNRELATED: FieldNames = FieldNames {
-    own: &[],
-    forbidden: &[],
-    flattened: &[&UNRELATED_THEN_SHARED, &OTHER],
+/// A section implemented by hand, with more declarations than a static table can number.
+struct Large;
+
+/// Declaration 65,536 is the only one named `x`.
+static LARGE: [&str; 65_537] = {
+    let mut names = [""; 65_537];
+    names[65_536] = "x";
+    names
 };
 
-#[test]
-fn finds_names_declared_or_forbidden_twice() {
-    let cases: [(&FieldNames, bool); 11] = [
-        (&OUTER, false),
-        (&TWICE, true),
-        (&DECLARED_AND_FORBIDDEN, true),
-        (&DECLARES_INNER, true),
-        (&FORBIDS_INNER, true),
-        (&FLATTENS_TWICE, true),
-        (&FLATTENS_CONFLICT, true),
-        (&SHARES_DEEPLY, true),
-        (&SHARES_FROM_DEEPER, true),
-        (&UNRELATED_THEN_SHARED, false),
-        (&SHARES_AFTER_UNRELATED, true),
-    ];
-    for (index, (names, conflicts)) in cases.into_iter().enumerate() {
-        assert_eq!(names.conflicts(), conflicts, "case {index}");
+impl FieldSection<'_> for Large {
+    const NAMES: FieldNames = FieldNames::new(&LARGE, &[], &[], false);
+    type Identity = Self;
+    type Builder = ();
+
+    fn builder() {}
+
+    fn accept(_: &mut (), _: &str, _: &[u8], _: usize) -> Result<bool, FieldError> {
+        Ok(false)
     }
-    assert!(format!("{OUTER:?}").contains("x-id"));
+
+    fn accept_declaration(_: &mut (), _: usize, _: &[u8], _: usize) -> Result<(), FieldError> {
+        Ok(())
+    }
+
+    fn finish((): ()) -> Result<Self, FieldError> {
+        Ok(Self)
+    }
 }
 
 #[test]
 fn static_tables_are_limited_to_sixteen_bit_ids() {
-    let names: Vec<&'static str> = (0..=usize::from(u16::MAX) + 1)
-        .map(|index| &*Box::leak(format!("f{index}").into_boxed_str()))
-        .collect();
-    let last = names[names.len() - 1];
-    let large = FieldNames {
-        own: Box::leak(names.into_boxed_slice()),
-        forbidden: &[],
-        flattened: &[],
-    };
-    let result = std::panic::catch_unwind(|| static_table_entries(&large, &[last]));
+    assert!(Large::interpret([("x", "")]).is_ok());
+    let result = std::panic::catch_unwind(|| static_table_entries::<Large, 1>(&["x"]));
     assert!(result.is_err());
 }

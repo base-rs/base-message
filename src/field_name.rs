@@ -1,29 +1,94 @@
 // Released under the MIT License.
 // Copyright, 2026, by Samuel Williams.
 
-/// How a field's name arrives: as text, or already classified for the section by a protocol's static table, as an HTTP/2 or HTTP/3 decoder can classify the fields it decodes by index.
+use crate::__private::{IncomingField, IncomingName};
+use crate::field_ref::IntoField;
+use crate::{FieldSection, StaticTableEntry};
+use std::fmt;
+
+/// How a decoder with a static table names one field for section `S`: by an entry of the table, classified for `S`, or as text when the name was sent literally.
 ///
-/// Use [`StaticTableEntry::name`](crate::StaticTableEntry::name) to make the classified forms; a classification made for one section is meaningless for another.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FieldName<'a> {
-    /// A name to match against the section's declarations.
+/// ```
+/// use base_message::{FieldName, FieldSection, FieldType, FieldValueError, StaticTableEntry, ascii_text, combination::Singleton, static_table_entries};
+///
+/// struct Text(String);
+///
+/// impl FieldType<'_> for Text {
+///     type Combination = Singleton;
+///     fn parse(value: &[u8]) -> Result<Self, FieldValueError> {
+///         Ok(Self(ascii_text(value)?.to_owned()))
+///     }
+/// }
+///
+/// #[derive(FieldSection)]
+/// struct Request {
+///     #[field("host")]
+///     host: Option<Text>,
+///     #[field("x-request-id")]
+///     request_id: Option<Text>,
+/// }
+///
+/// const TABLE: [StaticTableEntry<Request>; 1] = static_table_entries::<Request, 1>(&["host"]);
+/// let fields = [(FieldName::Indexed(TABLE[0]), &b"example.com"[..]), (FieldName::Text("x-request-id"), b"abc")];
+/// let request = Request::interpret(fields).unwrap();
+/// assert_eq!(request.request_id.map(|id| id.0).as_deref(), Some("abc"));
+/// ```
+pub enum FieldName<'a, S> {
+    /// A name sent literally, to match against the section's declarations.
     Text(&'a str),
-    /// A name the static table maps to one of the section's declarations, by id, with its text.
-    Declaration(u16, &'a str),
-    /// A name the static table finds the section forbids, with its text.
-    Forbidden(&'a str),
-    /// A name the static table finds the section neither declares nor forbids, with its text.
-    Undeclared(&'a str),
+    /// A name sent as an index into the static table, classified for the section.
+    Indexed(StaticTableEntry<S>),
 }
 
-impl<'a> FieldName<'a> {
+impl<'a, S> FieldName<'a, S> {
     /// The name's text.
     pub fn as_str(&self) -> &'a str {
-        match *self {
-            Self::Text(name)
-            | Self::Declaration(_, name)
-            | Self::Forbidden(name)
-            | Self::Undeclared(name) => name,
+        match self {
+            Self::Text(name) => name,
+            Self::Indexed(entry) => entry.name(),
+        }
+    }
+}
+
+impl<S> Clone for FieldName<'_, S> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<S> Copy for FieldName<'_, S> {}
+
+impl<S> PartialEq for FieldName<'_, S> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Text(left), Self::Text(right)) => left == right,
+            (Self::Indexed(left), Self::Indexed(right)) => left == right,
+            _ => false,
+        }
+    }
+}
+
+impl<S> Eq for FieldName<'_, S> {}
+
+impl<S> fmt::Debug for FieldName<'_, S> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Text(name) => formatter.debug_tuple("Text").field(name).finish(),
+            Self::Indexed(entry) => formatter.debug_tuple("Indexed").field(entry).finish(),
+        }
+    }
+}
+
+impl<'a, S: FieldSection<'a>> IntoField<'a, S> for (FieldName<'a, S::Identity>, &'a [u8]) {
+    fn into_field(self, index: usize) -> IncomingField<'a> {
+        let name = match self.0 {
+            FieldName::Text(name) => IncomingName::Text(name),
+            FieldName::Indexed(entry) => entry.incoming_name(),
+        };
+        IncomingField {
+            position: index,
+            name,
+            value: self.1,
         }
     }
 }

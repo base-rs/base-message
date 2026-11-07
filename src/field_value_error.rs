@@ -4,7 +4,7 @@
 use std::fmt;
 
 /// Why a field value is invalid, as a fixed description. It never includes the value, which may be large or untrusted.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FieldValueError {
     reason: &'static str,
 }

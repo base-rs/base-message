@@ -1,0 +1,92 @@
+warning: unused import: `FieldSection`
+ --> tests/ui/sealed.rs:1:62
+  |
+1 | use base_message::{combination::{List, Separate, Singleton}, FieldSection, FieldType, FieldValueError};
+  |                                                              ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `Both: combination::sealed::Sealed` is not satisfied
+  --> tests/ui/sealed.rs:34:22
+   |
+34 | impl SingleValue for Both {}
+   |                      ^^^^ unsatisfied trait bound
+   |
+help: the trait `combination::sealed::Sealed` is not implemented for `Both`
+  --> tests/ui/sealed.rs:32:1
+   |
+32 | struct Both;
+   | ^^^^^^^^^^^
+help: the following other types implement trait `combination::sealed::Sealed`
+  --> src/combination.rs
+   |
+   | impl sealed::Sealed for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Singleton`
+   | impl sealed::Sealed for List {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+   | impl sealed::Sealed for Separate {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Both` to implement `Combination`
+note: required by a bound in `SingleValue`
+  --> src/combination.rs
+   |
+   | pub trait SingleValue: Combination {}
+   |                        ^^^^^^^^^^^ required by this bound in `SingleValue`
+
+error[E0277]: the trait bound `Both: combination::sealed::Sealed` is not satisfied
+  --> tests/ui/sealed.rs:36:25
+   |
+36 | impl MultipleValues for Both {
+   |                         ^^^^ unsatisfied trait bound
+   |
+help: the trait `combination::sealed::Sealed` is not implemented for `Both`
+  --> tests/ui/sealed.rs:32:1
+   |
+32 | struct Both;
+   | ^^^^^^^^^^^
+help: the following other types implement trait `combination::sealed::Sealed`
+  --> src/combination.rs
+   |
+   | impl sealed::Sealed for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Singleton`
+   | impl sealed::Sealed for List {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+   | impl sealed::Sealed for Separate {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Both` to implement `Combination`
+note: required by a bound in `MultipleValues`
+  --> src/combination.rs
+   |
+   | pub trait MultipleValues: Combination {
+   |                           ^^^^^^^^^^^ required by this bound in `MultipleValues`
+
+error[E0277]: the trait bound `Both: combination::sealed::Sealed` is not satisfied
+  --> tests/ui/sealed.rs:40:22
+   |
+40 | impl Combination for Both {}
+   |                      ^^^^ unsatisfied trait bound
+   |
+help: the trait `combination::sealed::Sealed` is not implemented for `Both`
+  --> tests/ui/sealed.rs:32:1
+   |
+32 | struct Both;
+   | ^^^^^^^^^^^
+help: the following other types implement trait `combination::sealed::Sealed`
+  --> src/combination.rs
+   |
+   | impl sealed::Sealed for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Singleton`
+   | impl sealed::Sealed for List {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+   | impl sealed::Sealed for Separate {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+note: required by a bound in `Combination`
+  --> src/combination.rs
+   |
+   | pub trait Combination: sealed::Sealed {}
+   |                        ^^^^^^^^^^^^^^ required by this bound in `Combination`
+   = note: `Combination` is a "sealed trait", because to implement it you also need to implement `base_message::combination::sealed::Sealed`, which is not accessible; this is usually done to force you to use one of the provided types that already implement it
+   = help: the following types implement the trait:
+             base_message::combination::Singleton
+             base_message::combination::List
+             base_message::combination::Separate

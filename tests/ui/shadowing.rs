@@ -2,7 +2,7 @@ use base_message::{combination::{List, Separate, Singleton}, FieldSection, Field
 
 struct One;
 
-impl FieldType for One {
+impl FieldType<'_> for One {
     type Combination = Singleton;
     fn parse(_: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self)
@@ -11,7 +11,7 @@ impl FieldType for One {
 
 struct Many;
 
-impl FieldType for Many {
+impl FieldType<'_> for Many {
     type Combination = List;
     fn parse(_: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self)
@@ -20,7 +20,7 @@ impl FieldType for Many {
 
 struct Apart;
 
-impl FieldType for Apart {
+impl FieldType<'_> for Apart {
     type Combination = Separate;
     fn parse(_: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self)
@@ -56,6 +56,20 @@ struct FlattensTwice {
     first: Inner,
     #[fields(flatten)]
     second: Inner,
+}
+
+#[derive(FieldSection)]
+#[fields(unknown = "reject")]
+struct Strict {
+    #[field("host")]
+    host: Option<One>,
+}
+
+#[derive(FieldSection)]
+#[fields(unknown = "ignore")]
+struct IgnoresWhatItFlattensRejects {
+    #[fields(flatten)]
+    strict: Strict,
 }
 
 fn main() {}

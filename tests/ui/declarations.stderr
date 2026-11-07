@@ -12,7 +12,7 @@ error: FieldSection can only be derived for a struct with named fields
 36 | struct Tuple(Option<One>);
    |              ^^^^^^^^^^^
 
-error: declare this field with `#[field("name")]` or `#[fields(flatten)]`
+error: declare this member with `#[field("name")]` or `#[fields(flatten)]`
   --> tests/ui/declarations.rs:40:5
    |
 40 |     host: Option<One>,

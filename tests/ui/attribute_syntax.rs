@@ -2,7 +2,7 @@ use base_message::{combination::{List, Separate, Singleton}, FieldSection, Field
 
 struct One;
 
-impl FieldType for One {
+impl FieldType<'_> for One {
     type Combination = Singleton;
     fn parse(_: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self)
@@ -11,7 +11,7 @@ impl FieldType for One {
 
 struct Many;
 
-impl FieldType for Many {
+impl FieldType<'_> for Many {
     type Combination = List;
     fn parse(_: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self)
@@ -20,7 +20,7 @@ impl FieldType for Many {
 
 struct Apart;
 
-impl FieldType for Apart {
+impl FieldType<'_> for Apart {
     type Combination = Separate;
     fn parse(_: &[u8]) -> Result<Self, FieldValueError> {
         Ok(Self)
@@ -133,6 +133,19 @@ struct ForbiddenNotString {
 #[derive(FieldSection)]
 #[fields(unknown = "reject" forbid("te"))]
 struct SectionMissingComma {
+    #[field("host")]
+    host: Option<One>,
+}
+
+#[derive(FieldSection)]
+struct PolicyTwice {
+    #[field("host", invalid = "error", invalid = "ignore")]
+    host: Option<One>,
+}
+
+#[derive(FieldSection)]
+#[fields(unknown = "reject", unknown = "ignore")]
+struct UnknownTwice {
     #[field("host")]
     host: Option<One>,
 }

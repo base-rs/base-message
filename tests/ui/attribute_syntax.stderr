@@ -99,3 +99,15 @@ error: expected `,`
     |
 134 | #[fields(unknown = "reject" forbid("te"))]
     |                             ^^^^^^
+
+error: `invalid` is already given
+   --> tests/ui/attribute_syntax.rs:142:40
+    |
+142 |     #[field("host", invalid = "error", invalid = "ignore")]
+    |                                        ^^^^^^^
+
+error: `unknown` is already given
+   --> tests/ui/attribute_syntax.rs:147:30
+    |
+147 | #[fields(unknown = "reject", unknown = "ignore")]
+    |                              ^^^^^^^

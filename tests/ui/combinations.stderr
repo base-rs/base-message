@@ -11,7 +11,7 @@ help: the trait `SingleValue` is implemented for `Singleton`
    |
    | impl SingleValue for Singleton {}
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: required for `Option<Apart>` to implement `base_message::Accumulate`
+   = note: required for `Option<Apart>` to implement `base_message::__private::Accumulate<'__field>`
 
 error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
   --> tests/ui/combinations.rs:39:13
@@ -26,7 +26,7 @@ help: the trait `SingleValue` is implemented for `Singleton`
    |
    | impl SingleValue for Singleton {}
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: required for `Option<Many>` to implement `base_message::Accumulate`
+   = note: required for `Option<Many>` to implement `base_message::__private::Accumulate<'__field>`
 
 error[E0277]: a singleton field type cannot be declared as `Vec<T>`
   --> tests/ui/combinations.rs:45:12
@@ -44,23 +44,23 @@ help: the following other types implement trait `MultipleValues`
 ...
    | impl MultipleValues for Separate {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
-   = note: required for `Vec<One>` to implement `base_message::Accumulate`
+   = note: required for `Vec<One>` to implement `base_message::__private::Accumulate<'__field>`
 
-error[E0277]: the trait bound `&'static str: FieldType` is not satisfied
+error[E0277]: the trait bound `&'static str: FieldType<'_>` is not satisfied
   --> tests/ui/combinations.rs:51:11
    |
 51 |     host: &'static str,
-   |           ^ the trait `FieldType` is not implemented for `&'static str`
+   |           ^ the trait `FieldType<'_>` is not implemented for `&'static str`
    |
-help: the following other types implement trait `FieldType`
+help: the following other types implement trait `FieldType<'a>`
   --> tests/ui/combinations.rs:5:1
    |
- 5 | impl FieldType for One {
-   | ^^^^^^^^^^^^^^^^^^^^^^ `One`
+ 5 | impl FieldType<'_> for One {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `One`
 ...
-14 | impl FieldType for Many {
-   | ^^^^^^^^^^^^^^^^^^^^^^^ `Many`
+14 | impl FieldType<'_> for Many {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Many`
 ...
-23 | impl FieldType for Apart {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
-   = note: required for `Option<&'static str>` to implement `base_message::Accumulate`
+23 | impl FieldType<'_> for Apart {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
+   = note: required for `Option<&'static str>` to implement `base_message::__private::Accumulate<'__field>`

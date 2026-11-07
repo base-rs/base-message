@@ -4,45 +4,74 @@
 //! Helpers for parsing field values, which every protocol otherwise implements again.
 
 use crate::FieldValueError;
+use std::iter::FusedIterator;
 
 /// Split one instance of a list field into its elements, as RFC 9110 section 5.6.1 describes: a comma inside a quoted string does not separate elements, spaces and tabs around each element are removed, and empty elements are skipped.
+///
+/// Comments, the parenthesized text some fields such as `Via` allow (RFC 9110 section 5.6.5), are not recognized, so a comma inside one separates elements. A field type whose values can contain comments should use [`Separate`](crate::combination::Separate) and split its values itself.
 ///
 /// ```
 /// use base_message::split_list;
 ///
-/// let elements = split_list(b"text/html, , application/json;q=\"0,9\"")?;
-/// assert_eq!(elements, [&b"text/html"[..], &b"application/json;q=\"0,9\""[..]]);
+/// let elements: Result<Vec<&[u8]>, _> = split_list(b"text/html, , application/json;q=\"0,9\"").collect();
+/// assert_eq!(elements?, [&b"text/html"[..], &b"application/json;q=\"0,9\""[..]]);
+/// assert!(split_list(b"a, \"b").any(|element| element.is_err()));
 /// # Ok::<(), base_message::FieldValueError>(())
 /// ```
 ///
-/// # Errors
-///
-/// A quoted string that does not end.
-pub fn split_list(value: &[u8]) -> Result<Vec<&[u8]>, FieldValueError> {
-    let mut elements = Vec::new();
-    let (mut start, mut quoted, mut escaped) = (0, false, false);
-    for (index, &byte) in value.iter().enumerate() {
-        if escaped {
-            escaped = false;
-        } else if quoted && byte == b'\\' {
-            escaped = true;
-        } else if byte == b'"' {
-            quoted = !quoted;
-        } else if byte == b',' && !quoted {
-            elements.push(&value[start..index]);
-            start = index + 1;
-        }
-    }
-    if quoted {
-        return Err(FieldValueError::new("unterminated quoted string"));
-    }
-    elements.push(&value[start..]);
-    Ok(elements
-        .into_iter()
-        .map(trim_whitespace)
-        .filter(|element| !element.is_empty())
-        .collect())
+/// The elements are produced without allocating. A quoted string that does not end is reported as an error after the elements before it, and then the iterator ends.
+pub fn split_list(value: &[u8]) -> ListElements<'_> {
+    ListElements { rest: Some(value) }
 }
+
+/// The elements of one instance of a list field, as [`split_list`] produces them.
+#[derive(Clone, Debug)]
+pub struct ListElements<'a> {
+    /// The value not yet split, or `None` once the elements are exhausted.
+    rest: Option<&'a [u8]>,
+}
+
+impl<'a> Iterator for ListElements<'a> {
+    type Item = Result<&'a [u8], FieldValueError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(rest) = self.rest {
+            let (mut quoted, mut escaped, mut separator) = (false, false, None);
+            for (index, &byte) in rest.iter().enumerate() {
+                if escaped {
+                    escaped = false;
+                } else if quoted && byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'"' {
+                    quoted = !quoted;
+                } else if byte == b',' && !quoted {
+                    separator = Some(index);
+                    break;
+                }
+            }
+            let element = match separator {
+                Some(index) => {
+                    self.rest = Some(&rest[index + 1..]);
+                    &rest[..index]
+                }
+                None => {
+                    self.rest = None;
+                    if quoted {
+                        return Some(Err(FieldValueError::new("unterminated quoted string")));
+                    }
+                    rest
+                }
+            };
+            let element = trim_whitespace(element);
+            if !element.is_empty() {
+                return Some(Ok(element));
+            }
+        }
+        None
+    }
+}
+
+impl FusedIterator for ListElements<'_> {}
 
 /// Remove spaces and tabs from both ends, the optional whitespace of RFC 9110 section 5.6.3.
 pub fn trim_whitespace(value: &[u8]) -> &[u8] {
@@ -63,11 +92,13 @@ pub fn trim_whitespace(value: &[u8]) -> &[u8] {
 ///
 /// A control character or a byte outside ASCII.
 pub fn ascii_text(value: &[u8]) -> Result<&str, FieldValueError> {
-    if !value
-        .iter()
-        .all(|&byte| byte.is_ascii_graphic() || byte == b' ' || byte == b'\t')
+    let invalid = FieldValueError::new("value is not visible ASCII");
+    let text = std::str::from_utf8(value).map_err(|_| invalid)?;
+    if !text
+        .bytes()
+        .all(|byte| byte.is_ascii_graphic() || byte == b' ' || byte == b'\t')
     {
-        return Err(FieldValueError::new("value is not visible ASCII"));
+        return Err(invalid);
     }
-    Ok(std::str::from_utf8(value).expect("ASCII is UTF-8"))
+    Ok(text)
 }

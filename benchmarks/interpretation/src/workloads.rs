@@ -4,7 +4,7 @@
 use crate::request_section::{DECLARATIONS, DECLARED_NAMES, RequestSection, STATIC_TABLE};
 use crate::{BenchmarkConfig, FIELDS_PER_SECTION, Variant, Workload};
 use base_benchmark::{CurrentProcess, Interval, ProcessRecord, ResourceSource, Sample};
-use base_message::{FieldName, FieldRef, FieldSection, IntoFieldRef};
+use base_message::{FieldName, FieldRef, FieldSection, IntoField};
 use serde::Serialize;
 use std::hint::black_box;
 use std::io;
@@ -107,16 +107,13 @@ fn text_fields() -> Vec<(&'static str, &'static [u8])> {
 }
 
 /// The request as an HTTP/2 or HTTP/3 decoder passes it: lowercase names, those in the static table classified by declaration id, and the rest as text.
-fn indexed_fields(lowercase: &[String]) -> Vec<(FieldName<'_>, &'static [u8])> {
+fn indexed_fields(lowercase: &[String]) -> Vec<(FieldName<'_, RequestSection>, &'static [u8])> {
     lowercase
         .iter()
         .zip(REQUEST)
         .map(
             |(name, (_, value))| match DECLARED_NAMES.iter().position(|entry| entry == name) {
-                Some(index) => (
-                    STATIC_TABLE[index].name(DECLARED_NAMES[index]),
-                    value.as_bytes(),
-                ),
+                Some(index) => (FieldName::Indexed(STATIC_TABLE[index]), value.as_bytes()),
                 None => (FieldName::Text(name.as_str()), value.as_bytes()),
             },
         )
@@ -145,7 +142,7 @@ fn expected_outcome(workload: Workload) -> Outcome {
 }
 
 /// Interpret the fields once, untimed, for the preflight check.
-fn outcome<'a, F: IntoFieldRef<'a> + Copy>(
+fn outcome<'a, F: IntoField<'a, RequestSection> + Copy>(
     workload: Workload,
     fields: &[F],
 ) -> io::Result<Outcome> {
@@ -165,7 +162,7 @@ fn outcome<'a, F: IntoFieldRef<'a> + Copy>(
     })?;
     Ok(Outcome {
         lengths: section.lengths(),
-        remainder: remainder.iter().map(|field| field.position).collect(),
+        remainder: remainder.iter().map(FieldRef::position).collect(),
     })
 }
 
@@ -173,7 +170,7 @@ fn outcome<'a, F: IntoFieldRef<'a> + Copy>(
 fn preflight(
     workload: Workload,
     text: &[(&str, &[u8])],
-    indexed: &[(FieldName<'_>, &[u8])],
+    indexed: &[(FieldName<'_, RequestSection>, &[u8])],
     expected: &Outcome,
 ) -> io::Result<()> {
     outcome(workload, text).and_then(|actual| check(Variant::Text, &actual, expected))?;
@@ -193,7 +190,7 @@ fn check(variant: Variant, actual: &Outcome, expected: &Outcome) -> io::Result<(
 }
 
 /// Time the configured workload over `fields`, which preflight has checked interpret successfully.
-fn measure<'a, F: IntoFieldRef<'a> + Copy>(
+fn measure<'a, F: IntoField<'a, RequestSection> + Copy>(
     config: &BenchmarkConfig,
     fields: &[F],
     operations: u64,
