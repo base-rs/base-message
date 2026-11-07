@@ -61,7 +61,7 @@ mod owned_fields;
 mod static_table_entry;
 
 #[doc(hidden)]
-pub use accumulate::Accumulate;
+pub use accumulate::{Accumulate, Slot};
 pub use base_message_macros::FieldSection;
 pub use field_error::{FieldError, FieldErrorKind};
 pub use field_name::FieldName;
