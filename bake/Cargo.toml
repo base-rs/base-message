@@ -6,5 +6,6 @@ publish = false
 
 [dependencies]
 bake = "0.20.1"
+bake-benchmark = "0.1.0"
 # SECURITY: The open-ended requirement can select a future major version on `cargo update`, but a compromised publisher could as easily ship a compatible release; `Cargo.lock` and `--locked` CI builds mean a new version only arrives through a reviewed lockfile change. Neither published crate depends on this private task package.
 base-project = ">=0.1.7"

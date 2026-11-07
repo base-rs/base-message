@@ -47,7 +47,7 @@ See [releases.md](releases.md).
 
 Please open an issue or pull request on [GitHub](https://github.com/base-rs/base-message).
 
-Install the [Bake launcher](https://github.com/base-rs/bake) and run `cargo bake test`. Use `cargo bake test:coverage --all-targets true` for the shared source-region coverage gate.
+Install the [Bake launcher](https://github.com/base-rs/bake) and run `cargo bake test`. Use `cargo bake test:coverage --all-targets true` for the shared source-region coverage gate. See the [interpretation benchmark](benchmarks/interpretation/readme.md) for the workloads that measure interpretation by name and by static-table id.
 
 ### Agent Context
 

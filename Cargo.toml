@@ -12,7 +12,7 @@ categories = ["web-programming", "parser-implementations", "email"]
 include = ["src/**", "context/**", "Cargo.toml", "readme.md", "license.md", "releases.md"]
 
 [workspace]
-members = ["macros", "bake"]
+members = ["macros", "bake", "benchmarks/interpretation"]
 resolver = "3"
 
 [workspace.metadata.bake.release]
