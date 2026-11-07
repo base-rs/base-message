@@ -346,7 +346,7 @@ fn accept_declaration(
             _ => {
                 let __declaration = __declaration - #own_count;
                 #(#routes)*
-                ::core::unreachable!("a static table classified a declaration id {} past this section's declarations", __declaration)
+                ::core::unreachable!("a static table classified a declaration id past this section's declarations")
             }
         }
     }
