@@ -847,3 +847,75 @@ fn sections_can_declare_nothing_and_only_forbid() {
         FieldErrorKind::Forbidden
     );
 }
+
+#[test]
+fn static_tables_require_lowercase_names() {
+    // Pseudo-header names, such as HPACK's `:authority`, are lowercase visible ASCII too.
+    assert_eq!(ALL_HEADERS_TABLE[0].name(), ":authority");
+    for name in ["Transfer-Encoding", "", "host name", "caf\u{e9}"] {
+        let result = std::panic::catch_unwind(|| static_table_entries::<AllHeaders, 1>(&[name]));
+        assert!(
+            result.is_err(),
+            "{name:?} would never match a section's lowercase names"
+        );
+    }
+}
+
+#[test]
+fn debug_output_shows_value_lengths_not_values() {
+    let field = FieldRef::new(0, "Authorization", b"Bearer secret");
+    assert_eq!(
+        format!("{field:?}"),
+        "FieldRef { position: 0, name: \"Authorization\", value: <13 bytes> }"
+    );
+    let (_, rest): (OnlyTrace<'_>, OwnedFields) =
+        OnlyTrace::partition([("Cookie", "session=secret")]).unwrap();
+    let debug = format!("{rest:?}");
+    assert!(debug.contains("OwnedField { position: 0, name: \"Cookie\", value: <14 bytes> }"));
+    assert!(!debug.contains("secret"));
+}
+
+/// A hand-written section that breaks the derive's invariant: it claims `AllHeaders`' identity, so it accepts that section's table, but has only `OnlyHost`'s declarations.
+struct Impostor(OnlyHost);
+
+impl<'a> FieldSection<'a> for Impostor {
+    const NAMES: base_message::FieldNames = OnlyHost::NAMES;
+    type Identity = AllHeaders;
+    type Builder = <OnlyHost as FieldSection<'a>>::Builder;
+
+    fn builder() -> Self::Builder {
+        <OnlyHost as FieldSection<'a>>::builder()
+    }
+
+    fn accept(
+        builder: &mut Self::Builder,
+        name: &str,
+        value: &'a [u8],
+        position: usize,
+    ) -> Result<bool, base_message::FieldError> {
+        OnlyHost::accept(builder, name, value, position)
+    }
+
+    fn accept_declaration(
+        builder: &mut Self::Builder,
+        declaration: usize,
+        value: &'a [u8],
+        position: usize,
+    ) -> Result<(), base_message::FieldError> {
+        OnlyHost::accept_declaration(builder, declaration, value, position)
+    }
+
+    fn finish(builder: Self::Builder) -> Result<Self, base_message::FieldError> {
+        OnlyHost::finish(builder).map(Self)
+    }
+}
+
+#[test]
+#[should_panic(expected = "past this section's declarations")]
+fn a_declaration_id_past_the_section_panics_rather_than_misreading() {
+    // `x-request-id` is declaration 0 of `AllHeaders`, and 0 of `OnlyHost` too, so it is accepted.
+    let impostor = Impostor::interpret([(ALL_HEADERS_TABLE[3], &b"abc"[..])]).unwrap();
+    assert_eq!(impostor.0.host, Some(Text("abc".into())));
+    // `content-length` is declaration 3 of `AllHeaders`, which `OnlyHost` does not have.
+    let _ = Impostor::interpret([(ALL_HEADERS_TABLE[2], &b"5"[..])]);
+}

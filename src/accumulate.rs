@@ -95,6 +95,7 @@ where
             slot.value.extend(parse(value, position, name, invalid)?);
             return Ok(());
         }
+        // SECURITY: Each element becomes a stored value, so a list of short elements can take several times its input in memory, plus an allocation for each element of an owned field type. This is accepted: the memory is bounded by the size of the section, which the protocol's parser limits.
         // An instance whose list does not split is skipped as a whole under `Ignore`, so the elements it added before the error are removed.
         let start = slot.value.len();
         for element in split_list(value) {
