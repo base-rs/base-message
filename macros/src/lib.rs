@@ -142,6 +142,11 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         .iter()
         .map(|(member, ty)| quote!(#member: <#ty as ::base_message::FieldSection>::Builder));
 
+    let builder_members = declared.iter().map(|declared| &declared.member);
+    let flattened_members = flattened
+        .iter()
+        .map(|(member, ty)| quote!(#member: <#ty as ::base_message::FieldSection>::builder()));
+
     // Name dispatch jumps on the name's length and lowercased first byte, then compares the few names that share both. Forbidden names join the same jump, so refusing them costs nothing extra.
     let mut groups: BTreeMap<(usize, u8), Vec<TokenStream2>> = BTreeMap::new();
     for declared in &declared {
@@ -215,11 +220,11 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
 
     Ok(quote! {
         #[doc(hidden)]
-        #[derive(Default)]
         #visibility struct #builder {
             #(#builder_fields,)*
             #(#flattened_builders,)*
         }
+
 
         impl ::base_message::FieldSection for #ident {
             const NAMES: ::base_message::FieldNames = ::base_message::FieldNames { own: &[#(#names),*], forbidden: &[#(#forbidden),*], flattened: &[#(#flattened_names),*] };
@@ -227,6 +232,14 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
             const REJECTS_UNKNOWN: bool = #rejects_unknown;
 
             type Builder = #builder;
+
+            // Not `Default`, which requires the builder to be `Sized`, so that a mismatched declaration's error refers to this crate's requirements rather than the standard library's.
+            fn builder() -> Self::Builder {
+                #builder {
+                    #(#builder_members: ::core::default::Default::default(),)*
+                    #(#flattened_members,)*
+                }
+            }
 
             #[inline]
             fn accept(builder: &mut Self::Builder, name: &str, value: &[u8], position: usize) -> ::core::result::Result<bool, ::base_message::FieldError> {
