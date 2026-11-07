@@ -15,7 +15,11 @@ pub trait FieldSection: Sized {
     const REJECTS_UNKNOWN: bool;
 
     #[doc(hidden)]
-    type Builder: Default;
+    type Builder;
+
+    /// An empty builder, before any field is accepted.
+    #[doc(hidden)]
+    fn builder() -> Self::Builder;
 
     /// Offer one field by name, reporting whether a declaration took it. A forbidden name is an error.
     #[doc(hidden)]
@@ -78,7 +82,7 @@ where
     I::Item: IntoFieldRef<'a>,
     R: Extend<FieldRef<'a>>,
 {
-    let mut builder = S::Builder::default();
+    let mut builder = S::builder();
     let mut end = 0;
     for (index, field) in fields.into_iter().enumerate() {
         let field = field.into_field_ref(index);
