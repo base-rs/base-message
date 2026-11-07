@@ -49,7 +49,7 @@ impl Declared {
     fn accumulator(&self) -> TokenStream2 {
         let ty = &self.ty;
         match self.container {
-            Container::Required => quote!(::core::option::Option<#ty>),
+            Container::Required => quote_spanned!(ty.span() => ::core::option::Option<#ty>),
             Container::Optional | Container::Many => quote!(#ty),
         }
     }
@@ -136,7 +136,7 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
 
     let builder_fields = declared.iter().map(|declared| {
         let (member, accumulator) = (&declared.member, declared.accumulator());
-        quote_spanned!(declared.ty.span() => #member: <#accumulator as ::base_message::Accumulate>::State)
+        quote!(#member: ::base_message::Slot<#accumulator>)
     });
     let flattened_builders = flattened
         .iter()
@@ -203,8 +203,8 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
     let finishes = declared.iter().map(|declared| {
         let (member, name, accumulator) = (&declared.member, &declared.name, declared.accumulator());
         match declared.container {
-            Container::Required => quote!(#member: <#accumulator as ::base_message::Accumulate>::finish(builder.#member).ok_or_else(|| ::base_message::FieldError::missing(#name, end))?),
-            Container::Optional | Container::Many => quote!(#member: <#accumulator as ::base_message::Accumulate>::finish(builder.#member)),
+            Container::Required => quote_spanned!(declared.ty.span() => #member: <#accumulator as ::base_message::Accumulate>::finish(builder.#member).ok_or_else(|| ::base_message::FieldError::missing(#name, end))?),
+            Container::Optional | Container::Many => quote_spanned!(declared.ty.span() => #member: <#accumulator as ::base_message::Accumulate>::finish(builder.#member)),
         }
     });
     let flattened_finishes = flattened.iter().map(|(member, ty)| quote!(#member: <#ty as ::base_message::FieldSection>::finish(builder.#member, end)?));
