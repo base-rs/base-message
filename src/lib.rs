@@ -45,7 +45,7 @@
 //! # Ok::<(), base_message::FieldError>(())
 //! ```
 //!
-//! The crate holds the field sections of the message abstraction only. Control data, such as a request line or status, content, framing, and transport belong to each protocol's own crate. The [Getting Started](https://github.com/base-rs/base-message/blob/main/context/getting-started.md) guide covers field types and sections, and the [Layering](https://github.com/base-rs/base-message/blob/main/context/layering.md) guide covers passing fields between layers and static tables.
+//! The crate interprets field sections only. Parsing them from the wire, as well as control data, such as a request line or status, content, framing, and transport, belongs to each protocol's own crate, which passes the fields it parses as name and value pairs in wire order. The [Getting Started](https://github.com/base-rs/base-message/blob/main/context/getting-started.md) guide covers field types and sections, and the [Layering](https://github.com/base-rs/base-message/blob/main/context/layering.md) guide covers passing fields between layers and static tables.
 
 mod accumulate;
 pub mod combination;
