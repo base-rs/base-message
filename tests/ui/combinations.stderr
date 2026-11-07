@@ -1,0 +1,545 @@
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:33:13
+   |
+33 |     cookie: Option<Apart>,
+   |             ^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `Separate`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Apart>` to implement `base_message::Accumulate`
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:31:8
+   |
+30 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+31 | struct SeparateInOption {
+   |        ^^^^^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `Separate`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Apart>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SeparateInOptionFieldSectionBuilder`
+  --> tests/ui/combinations.rs:31:8
+   |
+31 | struct SeparateInOption {
+   |        ^^^^^^^^^^^^^^^^
+note: required by a bound in `Default`
+  --> library/core/src/default.rs:107:0
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:31:8
+   |
+31 | struct SeparateInOption {
+   |        ^^^^^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `Separate`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Apart>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SeparateInOptionFieldSectionBuilder`
+  --> tests/ui/combinations.rs:31:8
+   |
+31 | struct SeparateInOption {
+   |        ^^^^^^^^^^^^^^^^
+note: required by a bound in `base_message::FieldSection::Builder`
+  --> src/field_section.rs
+   |
+   |     type Builder: Default;
+   |     ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `FieldSection::Builder`
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:39:13
+   |
+39 |     accept: Many,
+   |             ^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `List`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Many>` to implement `base_message::Accumulate`
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:37:8
+   |
+36 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+37 | struct ListRequired {
+   |        ^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `List`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Many>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__ListRequiredFieldSectionBuilder`
+  --> tests/ui/combinations.rs:37:8
+   |
+37 | struct ListRequired {
+   |        ^^^^^^^^^^^^
+note: required by a bound in `Default`
+  --> library/core/src/default.rs:107:0
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:37:8
+   |
+37 | struct ListRequired {
+   |        ^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `List`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Many>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__ListRequiredFieldSectionBuilder`
+  --> tests/ui/combinations.rs:37:8
+   |
+37 | struct ListRequired {
+   |        ^^^^^^^^^^^^
+note: required by a bound in `base_message::FieldSection::Builder`
+  --> src/field_section.rs
+   |
+   |     type Builder: Default;
+   |     ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `FieldSection::Builder`
+
+error[E0277]: a singleton field type cannot be declared as `Vec<T>`
+  --> tests/ui/combinations.rs:45:12
+   |
+45 |     hosts: Vec<One>,
+   |            ^^^ this field type appears at most once
+   |
+   = help: the trait `MultipleValues` is not implemented for `Singleton`
+   = note: declare a singleton field as `Option<T>`, or as `T` when it is required
+help: the following other types implement trait `MultipleValues`
+  --> src/combination.rs
+   |
+   | impl MultipleValues for List {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+...
+   | impl MultipleValues for Separate {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Vec<One>` to implement `base_message::Accumulate`
+
+error[E0277]: a singleton field type cannot be declared as `Vec<T>`
+  --> tests/ui/combinations.rs:43:8
+   |
+42 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+43 | struct SingletonInVec {
+   |        ^^^^^^^^^^^^^^ this field type appears at most once
+   |
+   = help: the trait `MultipleValues` is not implemented for `Singleton`
+   = note: declare a singleton field as `Option<T>`, or as `T` when it is required
+help: the following other types implement trait `MultipleValues`
+  --> src/combination.rs
+   |
+   | impl MultipleValues for List {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+...
+   | impl MultipleValues for Separate {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Vec<One>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SingletonInVecFieldSectionBuilder`
+  --> tests/ui/combinations.rs:43:8
+   |
+43 | struct SingletonInVec {
+   |        ^^^^^^^^^^^^^^
+note: required by a bound in `Default`
+  --> library/core/src/default.rs:107:0
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a singleton field type cannot be declared as `Vec<T>`
+  --> tests/ui/combinations.rs:43:8
+   |
+43 | struct SingletonInVec {
+   |        ^^^^^^^^^^^^^^ this field type appears at most once
+   |
+   = help: the trait `MultipleValues` is not implemented for `Singleton`
+   = note: declare a singleton field as `Option<T>`, or as `T` when it is required
+help: the following other types implement trait `MultipleValues`
+  --> src/combination.rs
+   |
+   | impl MultipleValues for List {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+...
+   | impl MultipleValues for Separate {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Vec<One>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SingletonInVecFieldSectionBuilder`
+  --> tests/ui/combinations.rs:43:8
+   |
+43 | struct SingletonInVec {
+   |        ^^^^^^^^^^^^^^
+note: required by a bound in `base_message::FieldSection::Builder`
+  --> src/field_section.rs
+   |
+   |     type Builder: Default;
+   |     ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `FieldSection::Builder`
+
+error[E0277]: the trait bound `&'static str: FieldType` is not satisfied
+  --> tests/ui/combinations.rs:51:11
+   |
+51 |     host: &'static str,
+   |           ^ the trait `FieldType` is not implemented for `&'static str`
+   |
+help: the following other types implement trait `FieldType`
+  --> tests/ui/combinations.rs:5:1
+   |
+ 5 | impl FieldType for One {
+   | ^^^^^^^^^^^^^^^^^^^^^^ `One`
+...
+14 | impl FieldType for Many {
+   | ^^^^^^^^^^^^^^^^^^^^^^^ `Many`
+...
+23 | impl FieldType for Apart {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
+   = note: required for `Option<&'static str>` to implement `base_message::Accumulate`
+
+error[E0277]: the trait bound `&'static str: FieldType` is not satisfied
+  --> tests/ui/combinations.rs:49:8
+   |
+48 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+49 | struct NotAFieldType {
+   |        ^^^^^^^^^^^^^ the trait `FieldType` is not implemented for `&'static str`
+   |
+help: the following other types implement trait `FieldType`
+  --> tests/ui/combinations.rs:5:1
+   |
+ 5 | impl FieldType for One {
+   | ^^^^^^^^^^^^^^^^^^^^^^ `One`
+...
+14 | impl FieldType for Many {
+   | ^^^^^^^^^^^^^^^^^^^^^^^ `Many`
+...
+23 | impl FieldType for Apart {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
+   = note: required for `Option<&'static str>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__NotAFieldTypeFieldSectionBuilder`
+  --> tests/ui/combinations.rs:49:8
+   |
+49 | struct NotAFieldType {
+   |        ^^^^^^^^^^^^^
+note: required by a bound in `Default`
+  --> library/core/src/default.rs:107:0
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `&'static str: FieldType` is not satisfied
+  --> tests/ui/combinations.rs:49:8
+   |
+49 | struct NotAFieldType {
+   |        ^^^^^^^^^^^^^ the trait `FieldType` is not implemented for `&'static str`
+   |
+help: the following other types implement trait `FieldType`
+  --> tests/ui/combinations.rs:5:1
+   |
+ 5 | impl FieldType for One {
+   | ^^^^^^^^^^^^^^^^^^^^^^ `One`
+...
+14 | impl FieldType for Many {
+   | ^^^^^^^^^^^^^^^^^^^^^^^ `Many`
+...
+23 | impl FieldType for Apart {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
+   = note: required for `Option<&'static str>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__NotAFieldTypeFieldSectionBuilder`
+  --> tests/ui/combinations.rs:49:8
+   |
+49 | struct NotAFieldType {
+   |        ^^^^^^^^^^^^^
+note: required by a bound in `base_message::FieldSection::Builder`
+  --> src/field_section.rs
+   |
+   |     type Builder: Default;
+   |     ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `FieldSection::Builder`
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:30:10
+   |
+30 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `Separate`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Apart>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SeparateInOptionFieldSectionBuilder`
+  --> tests/ui/combinations.rs:31:8
+   |
+31 | struct SeparateInOption {
+   |        ^^^^^^^^^^^^^^^^
+   = note: the return type of a function must have a statically known size
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:36:10
+   |
+36 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `List`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Many>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__ListRequiredFieldSectionBuilder`
+  --> tests/ui/combinations.rs:37:8
+   |
+37 | struct ListRequired {
+   |        ^^^^^^^^^^^^
+   = note: the return type of a function must have a statically known size
+
+error[E0277]: a singleton field type cannot be declared as `Vec<T>`
+  --> tests/ui/combinations.rs:42:10
+   |
+42 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ this field type appears at most once
+   |
+   = help: the trait `MultipleValues` is not implemented for `Singleton`
+   = note: declare a singleton field as `Option<T>`, or as `T` when it is required
+help: the following other types implement trait `MultipleValues`
+  --> src/combination.rs
+   |
+   | impl MultipleValues for List {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+...
+   | impl MultipleValues for Separate {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Vec<One>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SingletonInVecFieldSectionBuilder`
+  --> tests/ui/combinations.rs:43:8
+   |
+43 | struct SingletonInVec {
+   |        ^^^^^^^^^^^^^^
+   = note: the return type of a function must have a statically known size
+
+error[E0277]: the trait bound `&'static str: FieldType` is not satisfied
+  --> tests/ui/combinations.rs:48:10
+   |
+48 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ the trait `FieldType` is not implemented for `&'static str`
+   |
+help: the following other types implement trait `FieldType`
+  --> tests/ui/combinations.rs:5:1
+   |
+ 5 | impl FieldType for One {
+   | ^^^^^^^^^^^^^^^^^^^^^^ `One`
+...
+14 | impl FieldType for Many {
+   | ^^^^^^^^^^^^^^^^^^^^^^^ `Many`
+...
+23 | impl FieldType for Apart {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
+   = note: required for `Option<&'static str>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__NotAFieldTypeFieldSectionBuilder`
+  --> tests/ui/combinations.rs:49:8
+   |
+49 | struct NotAFieldType {
+   |        ^^^^^^^^^^^^^
+   = note: the return type of a function must have a statically known size
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:33:5
+   |
+30 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+...
+33 |     cookie: Option<Apart>,
+   |     ^^^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `Separate`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Apart>` to implement `base_message::Accumulate`
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:30:10
+   |
+30 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `Separate`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Apart>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SeparateInOptionFieldSectionBuilder`
+  --> tests/ui/combinations.rs:31:8
+   |
+31 | struct SeparateInOption {
+   |        ^^^^^^^^^^^^^^^^
+   = note: this error originates in the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:39:5
+   |
+36 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+...
+39 |     accept: Many,
+   |     ^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `List`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Many>` to implement `base_message::Accumulate`
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
+  --> tests/ui/combinations.rs:36:10
+   |
+36 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ instances of this field type combine into several values
+   |
+   = help: the trait `SingleValue` is not implemented for `List`
+   = note: declare a list or separate field as `Vec<T>`, so that every value is kept
+help: the trait `SingleValue` is implemented for `Singleton`
+  --> src/combination.rs
+   |
+   | impl SingleValue for Singleton {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Option<Many>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__ListRequiredFieldSectionBuilder`
+  --> tests/ui/combinations.rs:37:8
+   |
+37 | struct ListRequired {
+   |        ^^^^^^^^^^^^
+   = note: this error originates in the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a singleton field type cannot be declared as `Vec<T>`
+  --> tests/ui/combinations.rs:45:5
+   |
+42 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+...
+45 |     hosts: Vec<One>,
+   |     ^^^^^^^^^^ this field type appears at most once
+   |
+   = help: the trait `MultipleValues` is not implemented for `Singleton`
+   = note: declare a singleton field as `Option<T>`, or as `T` when it is required
+help: the following other types implement trait `MultipleValues`
+  --> src/combination.rs
+   |
+   | impl MultipleValues for List {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+...
+   | impl MultipleValues for Separate {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Vec<One>` to implement `base_message::Accumulate`
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a singleton field type cannot be declared as `Vec<T>`
+  --> tests/ui/combinations.rs:42:10
+   |
+42 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ this field type appears at most once
+   |
+   = help: the trait `MultipleValues` is not implemented for `Singleton`
+   = note: declare a singleton field as `Option<T>`, or as `T` when it is required
+help: the following other types implement trait `MultipleValues`
+  --> src/combination.rs
+   |
+   | impl MultipleValues for List {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `List`
+...
+   | impl MultipleValues for Separate {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Separate`
+   = note: required for `Vec<One>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__SingletonInVecFieldSectionBuilder`
+  --> tests/ui/combinations.rs:43:8
+   |
+43 | struct SingletonInVec {
+   |        ^^^^^^^^^^^^^^
+   = note: this error originates in the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `&'static str: FieldType` is not satisfied
+  --> tests/ui/combinations.rs:51:5
+   |
+48 | #[derive(FieldSection)]
+   |          ------------ in this derive macro expansion
+...
+51 |     host: &'static str,
+   |     ^^^^^^^ the trait `FieldType` is not implemented for `&'static str`
+   |
+help: the following other types implement trait `FieldType`
+  --> tests/ui/combinations.rs:5:1
+   |
+ 5 | impl FieldType for One {
+   | ^^^^^^^^^^^^^^^^^^^^^^ `One`
+...
+14 | impl FieldType for Many {
+   | ^^^^^^^^^^^^^^^^^^^^^^^ `Many`
+...
+23 | impl FieldType for Apart {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
+   = note: required for `Option<&'static str>` to implement `base_message::Accumulate`
+   = note: this error originates in the derive macro `Default` which comes from the expansion of the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `&'static str: FieldType` is not satisfied
+  --> tests/ui/combinations.rs:48:10
+   |
+48 | #[derive(FieldSection)]
+   |          ^^^^^^^^^^^^ the trait `FieldType` is not implemented for `&'static str`
+   |
+help: the following other types implement trait `FieldType`
+  --> tests/ui/combinations.rs:5:1
+   |
+ 5 | impl FieldType for One {
+   | ^^^^^^^^^^^^^^^^^^^^^^ `One`
+...
+14 | impl FieldType for Many {
+   | ^^^^^^^^^^^^^^^^^^^^^^^ `Many`
+...
+23 | impl FieldType for Apart {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
+   = note: required for `Option<&'static str>` to implement `base_message::Accumulate`
+note: required because it appears within the type `__NotAFieldTypeFieldSectionBuilder`
+  --> tests/ui/combinations.rs:49:8
+   |
+49 | struct NotAFieldType {
+   |        ^^^^^^^^^^^^^
+   = note: this error originates in the derive macro `FieldSection` (in Nightly builds, run with -Z macro-backtrace for more info)

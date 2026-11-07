@@ -1,0 +1,20 @@
+[package]
+name = "base-message-macros"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.87"
+license = "MIT"
+description = "The derive macro for base-message field sections"
+repository = "https://github.com/base-rs/base-message"
+readme = "readme.md"
+keywords = ["headers", "fields", "derive", "message"]
+categories = ["web-programming"]
+include = ["src/**", "Cargo.toml", "readme.md", "license.md"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }

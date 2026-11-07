@@ -1,0 +1,17 @@
+error[E0080]: evaluation panicked: a field name is declared or forbidden by both this section and a section it flattens, so the two would disagree about it
+  --> tests/ui/shadowing.rs:38:8
+   |
+38 | struct DeclaresInnerName {
+   |        ^^^^^^^^^^^^^^^^^ evaluation of `_` failed here
+
+error[E0080]: evaluation panicked: a field name is declared or forbidden by both this section and a section it flattens, so the two would disagree about it
+  --> tests/ui/shadowing.rs:46:8
+   |
+46 | struct DeclaresInnerForbiddenName {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here
+
+error[E0080]: evaluation panicked: a field name is declared or forbidden by both this section and a section it flattens, so the two would disagree about it
+  --> tests/ui/shadowing.rs:54:8
+   |
+54 | struct FlattensTwice {
+   |        ^^^^^^^^^^^^^ evaluation of `_` failed here

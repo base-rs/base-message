@@ -1,0 +1,101 @@
+error: expected string literal
+  --> tests/ui/attribute_syntax.rs:32:13
+   |
+32 |     #[field(host)]
+   |             ^^^^
+
+error: expected `,`
+  --> tests/ui/attribute_syntax.rs:38:20
+   |
+38 |     #[field("host" invalid = "ignore")]
+   |                    ^^^^^^^
+
+error: expected identifier
+  --> tests/ui/attribute_syntax.rs:44:21
+   |
+44 |     #[field("host", "ignore")]
+   |                     ^^^^^^^^
+
+error: expected `invalid = "error"` or `invalid = "ignore"`
+  --> tests/ui/attribute_syntax.rs:50:21
+   |
+50 |     #[field("host", strict = "yes")]
+   |                     ^^^^^^
+
+error: expected `=`
+  --> tests/ui/attribute_syntax.rs:56:29
+   |
+56 |     #[field("host", invalid "ignore")]
+   |                             ^^^^^^^^
+
+error: expected string literal
+  --> tests/ui/attribute_syntax.rs:62:31
+   |
+62 |     #[field("host", invalid = ignore)]
+   |                               ^^^^^^
+
+error: `invalid` must be "error" or "ignore"
+  --> tests/ui/attribute_syntax.rs:68:31
+   |
+68 |     #[field("host", invalid = "maybe")]
+   |                               ^^^^^^^
+
+error: expected identifier
+  --> tests/ui/attribute_syntax.rs:74:14
+   |
+74 |     #[fields("flatten")]
+   |              ^^^^^^^^^
+
+error: expected `flatten`
+  --> tests/ui/attribute_syntax.rs:80:14
+   |
+80 |     #[fields(spread)]
+   |              ^^^^^^
+
+error: expected identifier
+  --> tests/ui/attribute_syntax.rs:85:10
+   |
+85 | #[fields("reject")]
+   |          ^^^^^^^^
+
+error: expected `unknown = "..."` or `forbid("name", ...)`
+  --> tests/ui/attribute_syntax.rs:92:10
+   |
+92 | #[fields(strict)]
+   |          ^^^^^^
+
+error: expected `=`
+  --> tests/ui/attribute_syntax.rs:99:18
+   |
+99 | #[fields(unknown "reject")]
+   |                  ^^^^^^^^
+
+error: expected string literal
+   --> tests/ui/attribute_syntax.rs:106:20
+    |
+106 | #[fields(unknown = reject)]
+    |                    ^^^^^^
+
+error: `unknown` must be "reject" or "ignore"; use `partition` to collect the fields a section does not take
+   --> tests/ui/attribute_syntax.rs:113:20
+    |
+113 | #[fields(unknown = "keep")]
+    |                    ^^^^^^
+
+error: expected parentheses
+   --> tests/ui/attribute_syntax.rs:120:17
+    |
+120 | #[fields(forbid = "te")]
+    |                 ^
+
+error: expected string literal
+   --> tests/ui/attribute_syntax.rs:127:17
+    |
+127 | #[fields(forbid(te))]
+    |                 ^^
+
+error: expected `,`
+   --> tests/ui/attribute_syntax.rs:134:29
+    |
+134 | #[fields(unknown = "reject" forbid("te"))]
+    |                             ^^^^^^
