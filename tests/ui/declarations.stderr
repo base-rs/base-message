@@ -1,55 +1,55 @@
 error: FieldSection can only be derived for a struct with named fields
-  --> tests/ui/declarations.rs:31:1
+  --> tests/ui/declarations.rs:34:1
    |
-31 | / enum NotAStruct {
-32 | |     A,
-33 | | }
+34 | / enum NotAStruct {
+35 | |     A,
+36 | | }
    | |_^
 
 error: FieldSection can only be derived for a struct with named fields
-  --> tests/ui/declarations.rs:36:14
+  --> tests/ui/declarations.rs:39:14
    |
-36 | struct Tuple(Option<One>);
+39 | struct Tuple(Option<One>);
    |              ^^^^^^^^^^^
 
 error: declare this member with `#[field("name")]` or `#[fields(flatten)]`
-  --> tests/ui/declarations.rs:40:5
+  --> tests/ui/declarations.rs:43:5
    |
-40 |     host: Option<One>,
+43 |     host: Option<One>,
    |     ^^^^^^^^^^^^^^^^^
 
 error: a field name must be a lowercase token, such as "content-type"
-  --> tests/ui/declarations.rs:45:13
+  --> tests/ui/declarations.rs:48:13
    |
-45 |     #[field("Host")]
+48 |     #[field("Host")]
    |             ^^^^^^
 
 error: this field name is already declared
-  --> tests/ui/declarations.rs:53:13
+  --> tests/ui/declarations.rs:56:13
    |
-53 |     #[field("host")]
+56 |     #[field("host")]
    |             ^^^^^^
 
 error: a field name must be a lowercase token, such as "content-type"
-  --> tests/ui/declarations.rs:58:17
+  --> tests/ui/declarations.rs:61:17
    |
-58 | #[fields(forbid("TE"))]
+61 | #[fields(forbid("TE"))]
    |                 ^^^^
 
 error: this field name is already forbidden
-  --> tests/ui/declarations.rs:65:23
+  --> tests/ui/declarations.rs:68:23
    |
-65 | #[fields(forbid("te", "te"))]
+68 | #[fields(forbid("te", "te"))]
    |                       ^^^^
 
 error: this field name is declared, so it cannot also be forbidden
-  --> tests/ui/declarations.rs:72:17
+  --> tests/ui/declarations.rs:75:17
    |
-72 | #[fields(forbid("host"))]
+75 | #[fields(forbid("host"))]
    |                 ^^^^^^
 
 error: sections do not keep unknown fields; use `partition` to collect the fields a section does not take
-  --> tests/ui/declarations.rs:82:14
+  --> tests/ui/declarations.rs:85:14
    |
-82 |     #[fields(other)]
+85 |     #[fields(other)]
    |              ^^^^^

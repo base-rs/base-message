@@ -1,23 +1,23 @@
 error: a member takes one `#[field("name")]` or `#[fields(flatten)]` declaration
-  --> tests/ui/members.rs:33:5
+  --> tests/ui/members.rs:36:5
    |
-33 |     #[field("b")]
+36 |     #[field("b")]
    |     ^^^^^^^^^^^^^
 
 error: a member takes one `#[field("name")]` or `#[fields(flatten)]` declaration
-  --> tests/ui/members.rs:40:5
+  --> tests/ui/members.rs:43:5
    |
-40 |     #[fields(flatten)]
+43 |     #[fields(flatten)]
    |     ^^^^^^^^^^^^^^^^^^
 
 error: `#[field(...)]` declares a member; on the struct, use `#[fields(...)]`
-  --> tests/ui/members.rs:45:1
+  --> tests/ui/members.rs:48:1
    |
-45 | #[field("host")]
+48 | #[field("host")]
    | ^^^^^^^^^^^^^^^^
 
 error: a required field always treats an invalid value as an error; declare it as `Option<T>` to make it optional
-  --> tests/ui/members.rs:53:31
+  --> tests/ui/members.rs:56:31
    |
-53 |     #[field("host", invalid = "ignore")]
+56 |     #[field("host", invalid = "ignore")]
    |                               ^^^^^^^^

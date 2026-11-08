@@ -1,21 +1,21 @@
 warning: unused import: `FieldSection`
- --> tests/ui/sealed.rs:1:62
+ --> tests/ui/sealed.rs:4:62
   |
-1 | use base_message::{combination::{List, Separate, Singleton}, FieldSection, FieldType, FieldValueError};
+4 | use base_message::{combination::{List, Separate, Singleton}, FieldSection, FieldType, FieldValueError};
   |                                                              ^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 error[E0277]: the trait bound `Both: combination::sealed::Sealed` is not satisfied
-  --> tests/ui/sealed.rs:34:22
+  --> tests/ui/sealed.rs:37:22
    |
-34 | impl SingleValue for Both {}
+37 | impl SingleValue for Both {}
    |                      ^^^^ unsatisfied trait bound
    |
 help: the trait `combination::sealed::Sealed` is not implemented for `Both`
-  --> tests/ui/sealed.rs:32:1
+  --> tests/ui/sealed.rs:35:1
    |
-32 | struct Both;
+35 | struct Both;
    | ^^^^^^^^^^^
 help: the following other types implement trait `combination::sealed::Sealed`
   --> src/combination.rs
@@ -34,15 +34,15 @@ note: required by a bound in `SingleValue`
    |                        ^^^^^^^^^^^ required by this bound in `SingleValue`
 
 error[E0277]: the trait bound `Both: combination::sealed::Sealed` is not satisfied
-  --> tests/ui/sealed.rs:36:25
+  --> tests/ui/sealed.rs:39:25
    |
-36 | impl MultipleValues for Both {
+39 | impl MultipleValues for Both {
    |                         ^^^^ unsatisfied trait bound
    |
 help: the trait `combination::sealed::Sealed` is not implemented for `Both`
-  --> tests/ui/sealed.rs:32:1
+  --> tests/ui/sealed.rs:35:1
    |
-32 | struct Both;
+35 | struct Both;
    | ^^^^^^^^^^^
 help: the following other types implement trait `combination::sealed::Sealed`
   --> src/combination.rs
@@ -61,15 +61,15 @@ note: required by a bound in `MultipleValues`
    |                           ^^^^^^^^^^^ required by this bound in `MultipleValues`
 
 error[E0277]: the trait bound `Both: combination::sealed::Sealed` is not satisfied
-  --> tests/ui/sealed.rs:40:22
+  --> tests/ui/sealed.rs:43:22
    |
-40 | impl Combination for Both {}
+43 | impl Combination for Both {}
    |                      ^^^^ unsatisfied trait bound
    |
 help: the trait `combination::sealed::Sealed` is not implemented for `Both`
-  --> tests/ui/sealed.rs:32:1
+  --> tests/ui/sealed.rs:35:1
    |
-32 | struct Both;
+35 | struct Both;
    | ^^^^^^^^^^^
 help: the following other types implement trait `combination::sealed::Sealed`
   --> src/combination.rs
