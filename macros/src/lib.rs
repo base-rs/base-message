@@ -318,52 +318,38 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
     })
 }
 
-/// The body of `accept_declaration`. Declaration ids number this section's own declarations in order, then each flattened section's. A static table classifies only names a section declares, so every id it passes is in range: the last declaration, or the last flattened section, takes the remaining ids.
+/// The body of `accept_declaration`. Declaration ids number this section's own declarations in order, then each flattened section's.
+///
+/// A static table classifies only a section's own declarations, so an id the section does not have means a broken invariant, such as a hand-written `FieldSection` whose identity names another section; it panics rather than giving the value to another declaration.
 fn accept_declaration(
     declared: &[Declared],
     flattened: &[Flattened],
     lifetime: &Lifetime,
 ) -> TokenStream2 {
     let own_count = declared.len();
-    let mut arms: Vec<TokenStream2> = declared
-        .iter()
-        .enumerate()
-        .map(|(id, declared)| {
-            let add = declared.add(lifetime);
-            let pattern = if flattened.is_empty() && id + 1 == own_count {
-                quote!(_)
-            } else {
-                quote!(#id)
-            };
-            quote!(#pattern => { #add; ::core::result::Result::Ok(()) })
-        })
-        .collect();
-    if let Some((last, others)) = flattened.split_last() {
-        let routes = others.iter().map(|Flattened { member, ty, identity }| {
-            quote! {
-                let __count = const { <#identity as ::base_message::FieldSection<'static>>::NAMES.count() };
-                if __declaration < __count {
-                    return <#ty as ::base_message::FieldSection<#lifetime>>::accept_declaration(&mut __builder.#member, __declaration, __value, __position);
-                }
-                let __declaration = __declaration - __count;
+    let arms = declared.iter().enumerate().map(|(id, declared)| {
+        let add = declared.add(lifetime);
+        quote!(#id => { #add; ::core::result::Result::Ok(()) })
+    });
+    let routes = flattened.iter().map(|Flattened { member, ty, identity }| {
+        quote! {
+            let __count = const { <#identity as ::base_message::FieldSection<'static>>::NAMES.count() };
+            if __declaration < __count {
+                return <#ty as ::base_message::FieldSection<#lifetime>>::accept_declaration(&mut __builder.#member, __declaration, __value, __position);
             }
-        });
-        let Flattened { member, ty, .. } = last;
-        arms.push(quote! {
+            let __declaration = __declaration - __count;
+        }
+    });
+    quote! {
+        match __declaration {
+            #(#arms)*
             _ => {
                 let __declaration = __declaration - #own_count;
                 #(#routes)*
-                <#ty as ::base_message::FieldSection<#lifetime>>::accept_declaration(&mut __builder.#member, __declaration, __value, __position)
+                ::core::unreachable!("a static table classified a declaration id past this section's declarations")
             }
-        });
+        }
     }
-    if arms.is_empty() {
-        // A section that declares nothing is never passed a declaration id.
-        return quote!(::core::unreachable!(
-            "a section that declares no fields received a declaration id"
-        ));
-    }
-    quote!(match __declaration { #(#arms)* })
 }
 
 /// Compile-time checks: no name is declared or forbidden both by this section and by a section it flattens, or by two flattened sections, and an explicit `unknown = "ignore"` does not contradict a flattened section that rejects unknown fields.

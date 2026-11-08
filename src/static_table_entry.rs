@@ -117,7 +117,7 @@ impl<'a, S: FieldSection<'a>> IntoField<'a, S> for (StaticTableEntry<S::Identity
 ///
 /// # Panics
 ///
-/// When a name in the table has a declaration id above 65,535, which a constant reports as a compile-time error.
+/// When a name in the table is not lowercase visible ASCII, such as `"Transfer-Encoding"`, since a section's names are lowercase and such a name would never match the declaration or forbidden name it spells; or when a name has a declaration id above 65,535. A constant reports either as a compile-time error.
 pub const fn static_table_entries<S: FieldSection<'static>, const N: usize>(
     table: &[&'static str; N],
 ) -> [StaticTableEntry<S::Identity>; N] {
@@ -128,6 +128,10 @@ pub const fn static_table_entries<S: FieldSection<'static>, const N: usize>(
     }; N];
     let mut index = 0;
     while index < N {
+        assert!(
+            lowercase(table[index]),
+            "a static table's names must be lowercase visible ASCII, as HPACK's and QPACK's are"
+        );
         let classification = if let Some(declaration) = S::NAMES.declaration(table[index]) {
             assert!(
                 declaration <= u16::MAX as usize,
@@ -151,4 +155,17 @@ pub const fn static_table_entries<S: FieldSection<'static>, const N: usize>(
         index += 1;
     }
     entries
+}
+
+/// Whether a name is non-empty visible ASCII without uppercase letters. This admits field names and pseudo-header names such as `:authority`.
+const fn lowercase(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if !bytes[index].is_ascii_graphic() || bytes[index].is_ascii_uppercase() {
+            return false;
+        }
+        index += 1;
+    }
+    !bytes.is_empty()
 }

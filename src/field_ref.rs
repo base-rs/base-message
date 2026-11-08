@@ -2,11 +2,12 @@
 // Copyright, 2026, by Samuel Williams.
 
 use crate::__private::{IncomingField, IncomingName};
+use std::fmt;
 
 /// One field, borrowed, with its position in the original section.
 ///
 /// [`FieldSection::partition`](crate::FieldSection::partition) returns the fields a section does not take as `FieldRef`s, so that the next section reports errors at their original positions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FieldRef<'a> {
     position: usize,
     name: &'a str,
@@ -37,6 +38,29 @@ impl<'a> FieldRef<'a> {
     pub const fn value(&self) -> &'a [u8] {
         self.value
     }
+}
+
+/// Shows the value's length rather than its bytes, since values such as `Authorization` and `Cookie` carry credentials that must not reach logs.
+impl fmt::Debug for FieldRef<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        debug_field(formatter, "FieldRef", self.position, self.name, self.value)
+    }
+}
+
+/// A field's debug representation, with its value redacted to its length.
+pub(crate) fn debug_field(
+    formatter: &mut fmt::Formatter<'_>,
+    type_name: &str,
+    position: usize,
+    name: &str,
+    value: &[u8],
+) -> fmt::Result {
+    formatter
+        .debug_struct(type_name)
+        .field("position", &position)
+        .field("name", &name)
+        .field("value", &format_args!("<{} bytes>", value.len()))
+        .finish()
 }
 
 /// Something section `S` can interpret as one field.

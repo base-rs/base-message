@@ -83,6 +83,7 @@ pub trait FieldSection<'a>: Sized {
     }
 }
 
+// SECURITY: Names are matched as given, ASCII case-insensitively: a malformed name, such as one with surrounding spaces, a NUL, or a non-ASCII lookalike letter, matches no declared or forbidden name and is treated as undeclared, so it is not refused. This is not a bypass, because protocol crates validate field-name syntax before interpretation, as `design/scope.md` requires, so such a name never arrives.
 fn interpret<'a, S, I, R>(fields: I, mut remainder: Option<&mut R>) -> Result<S, FieldError>
 where
     S: FieldSection<'a>,

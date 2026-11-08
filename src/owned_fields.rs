@@ -3,10 +3,11 @@
 
 use crate::__private::{IncomingField, IncomingName};
 use crate::FieldRef;
-use crate::field_ref::IntoField;
+use crate::field_ref::{IntoField, debug_field};
+use std::fmt;
 
 /// One field, owned, with its position in the original section.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct OwnedField {
     position: usize,
     name: String,
@@ -32,6 +33,19 @@ impl OwnedField {
     /// The field, borrowed, so that another section can interpret it.
     pub fn as_field_ref(&self) -> FieldRef<'_> {
         FieldRef::new(self.position, &self.name, &self.value)
+    }
+}
+
+/// Shows the value's length rather than its bytes, since values such as `Authorization` and `Cookie` carry credentials that must not reach logs.
+impl fmt::Debug for OwnedField {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        debug_field(
+            formatter,
+            "OwnedField",
+            self.position,
+            &self.name,
+            &self.value,
+        )
     }
 }
 

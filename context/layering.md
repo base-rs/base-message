@@ -54,7 +54,7 @@ assert_eq!(application.request_id.map(|id| id.0).as_deref(), Some("abc"));
 assert_eq!((rest.len(), rest[0].position(), rest[0].name()), (1, 3, "User-Agent"));
 ```
 
-- The remainder borrows names and values from the input, so a `Vec<FieldRef>` copies nothing. Collect into `OwnedFields` instead to keep the fields beyond the input's lifetime.
+- The remainder borrows names and values from the input, so a `Vec<FieldRef>` copies nothing. Collect into `OwnedFields` instead to keep the fields beyond the input's lifetime. Their `Debug` output shows each value's length rather than its bytes, so logging a remainder does not write credentials such as `Authorization` to logs.
 - Each remaining field keeps its position in the original section, so a later layer's errors cite the position a person reading the message would see.
 - A forbidden field is an error, never part of the remainder, so a later layer is never handed a field an earlier one refused.
 - `interpret` is `partition` with the remainder discarded. A section with `unknown = "reject"` has no remainder.
