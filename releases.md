@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.1.0
 
 - Add `FieldType`, whose combination marker, `Singleton`, `List`, or `Separate`, decides how a field's instances combine, and `#[derive(FieldSection)]`, which generates the interpretation of a header or trailer section into a struct: duplicate singletons are errors, lists respect quoted commas, invalid values follow each field's policy, forbidden fields are refused, and undeclared fields are ignored or rejected.
 - Field types and sections can borrow their values from the input, through the lifetime on `FieldType<'a>` and one lifetime parameter on a section.

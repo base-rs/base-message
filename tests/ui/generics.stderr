@@ -1,23 +1,23 @@
 error: a field section may have one lifetime parameter, for values it borrows from the input, and no other generic parameters, bounds, or where clause
-  --> tests/ui/generics.rs:31:22
+  --> tests/ui/generics.rs:34:22
    |
-31 | struct TypeParameter<T> {
+34 | struct TypeParameter<T> {
    |                      ^
 
 error: a field section may have one lifetime parameter, for values it borrows from the input, and no other generic parameters, bounds, or where clause
-  --> tests/ui/generics.rs:37:20
+  --> tests/ui/generics.rs:40:20
    |
-37 | struct TwoLifetimes<'a, 'b> {
+40 | struct TwoLifetimes<'a, 'b> {
    |                    ^^^^^^^^
 
 error: a field section may have one lifetime parameter, for values it borrows from the input, and no other generic parameters, bounds, or where clause
-  --> tests/ui/generics.rs:43:24
+  --> tests/ui/generics.rs:46:24
    |
-43 | struct BoundedLifetime<'a: 'static> {
+46 | struct BoundedLifetime<'a: 'static> {
    |                        ^^^^^^^^^^^
 
 error: a field section may have one lifetime parameter, for values it borrows from the input, and no other generic parameters, bounds, or where clause
-  --> tests/ui/generics.rs:49:19
+  --> tests/ui/generics.rs:52:19
    |
-49 | struct WhereClause<'a> where One: Sized {
+52 | struct WhereClause<'a> where One: Sized {
    |                   ^^^^

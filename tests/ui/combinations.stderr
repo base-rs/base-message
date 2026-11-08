@@ -1,7 +1,7 @@
 error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
-  --> tests/ui/combinations.rs:33:13
+  --> tests/ui/combinations.rs:36:13
    |
-33 |     cookie: Option<Apart>,
+36 |     cookie: Option<Apart>,
    |             ^^^^^^^^^^^^^ instances of this field type combine into several values
    |
    = help: the trait `SingleValue` is not implemented for `Separate`
@@ -14,9 +14,9 @@ help: the trait `SingleValue` is implemented for `Singleton`
    = note: required for `Option<Apart>` to implement `base_message::__private::Accumulate<'__field>`
 
 error[E0277]: a field type that can repeat cannot be declared as `Option<T>` or `T`
-  --> tests/ui/combinations.rs:39:13
+  --> tests/ui/combinations.rs:42:13
    |
-39 |     accept: Many,
+42 |     accept: Many,
    |             ^^^^ instances of this field type combine into several values
    |
    = help: the trait `SingleValue` is not implemented for `List`
@@ -29,9 +29,9 @@ help: the trait `SingleValue` is implemented for `Singleton`
    = note: required for `Option<Many>` to implement `base_message::__private::Accumulate<'__field>`
 
 error[E0277]: a singleton field type cannot be declared as `Vec<T>`
-  --> tests/ui/combinations.rs:45:12
+  --> tests/ui/combinations.rs:48:12
    |
-45 |     hosts: Vec<One>,
+48 |     hosts: Vec<One>,
    |            ^^^^^^^^ this field type appears at most once
    |
    = help: the trait `MultipleValues` is not implemented for `Singleton`
@@ -47,20 +47,20 @@ help: the following other types implement trait `MultipleValues`
    = note: required for `Vec<One>` to implement `base_message::__private::Accumulate<'__field>`
 
 error[E0277]: the trait bound `&'static str: FieldType<'_>` is not satisfied
-  --> tests/ui/combinations.rs:51:11
+  --> tests/ui/combinations.rs:54:11
    |
-51 |     host: &'static str,
+54 |     host: &'static str,
    |           ^ the trait `FieldType<'_>` is not implemented for `&'static str`
    |
 help: the following other types implement trait `FieldType<'a>`
-  --> tests/ui/combinations.rs:5:1
+  --> tests/ui/combinations.rs:8:1
    |
- 5 | impl FieldType<'_> for One {
+ 8 | impl FieldType<'_> for One {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `One`
 ...
-14 | impl FieldType<'_> for Many {
+17 | impl FieldType<'_> for Many {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Many`
 ...
-23 | impl FieldType<'_> for Apart {
+26 | impl FieldType<'_> for Apart {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Apart`
    = note: required for `Option<&'static str>` to implement `base_message::__private::Accumulate<'__field>`

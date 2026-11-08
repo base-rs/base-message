@@ -1,23 +1,23 @@
 error[E0080]: evaluation panicked: the field name "host" is also declared or forbidden by the section flattened as `inner`, so the two would disagree about it
-  --> tests/ui/shadowing.rs:41:13
+  --> tests/ui/shadowing.rs:44:13
    |
-41 |     #[field("host")]
+44 |     #[field("host")]
    |             ^^^^^^ evaluation of `_::_` failed here
 
 error[E0080]: evaluation panicked: the field name "te" is also declared or forbidden by the section flattened as `inner`, so the two would disagree about it
-  --> tests/ui/shadowing.rs:49:13
+  --> tests/ui/shadowing.rs:52:13
    |
-49 |     #[field("te")]
+52 |     #[field("te")]
    |             ^^^^ evaluation of `_::_` failed here
 
 error[E0080]: evaluation panicked: the sections flattened as `first` and `second` both declare or forbid a field name, so they would disagree about it
-  --> tests/ui/shadowing.rs:58:5
+  --> tests/ui/shadowing.rs:61:5
    |
-58 |     second: Inner,
+61 |     second: Inner,
    |     ^^^^^^ evaluation of `_::_` failed here
 
 error[E0080]: evaluation panicked: the section flattened as `strict` rejects unknown fields, so this section cannot ignore them
-  --> tests/ui/shadowing.rs:69:20
+  --> tests/ui/shadowing.rs:72:20
    |
-69 | #[fields(unknown = "ignore")]
+72 | #[fields(unknown = "ignore")]
    |                    ^^^^^^^^ evaluation of `_::_` failed here
